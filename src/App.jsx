@@ -6,6 +6,15 @@ const MASTER_KEY = "$2a$10$O2F0Os04xfXpTPk7jCdHpeDQGKXiJdwlSlpnuFrlEPSmsZ/SdAMgO
 const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 const HEADERS = { "X-Master-Key": MASTER_KEY, "Content-Type": "application/json" };
 
+// ---------- tool config ----------
+const TOOLS = [
+  { key: "DB", emoji: "🎤" },
+  { key: "KB", emoji: "🥘" },
+  { key: "BB", emoji: "🏋️‍♂️" },
+  { key: "BW", emoji: "🤽‍♂️" },
+  { key: "ERG", emoji: "🚣" },
+];
+
 // ---------- date helpers ----------
 const pad = (n) => String(n).padStart(2, "0");
 const todayStr = () => {
@@ -121,7 +130,9 @@ export default function App() {
   const [synced, setSynced] = useState(false);
   const isFirstLoad = useRef(true);
   const lastSavedRef = useRef("");
-  const isTyping = useRef(false);
+  const typingRef = useRef(false);
+  const typeTimerRef = useRef(null);
+  const remoteUpdateRef = useRef(false);
 
   const [amount, setAmount] = useState("");
   const [txType, setTxType] = useState("income");
@@ -150,10 +161,10 @@ export default function App() {
   // ---- Save to JSONbin ----
   const saveToCloud = useCallback(() => {
     if (!synced || isFirstLoad.current) { isFirstLoad.current = false; return; }
-    if (isTyping.current) return; // skip save while typing
+    if (typingRef.current) return;
     const data = { darkMode, transactions, streakLastReset, readingDates, workoutPlan };
     const newData = JSON.stringify(data);
-    if (newData === lastSavedRef.current) return; // skip if unchanged
+    if (newData === lastSavedRef.current) return;
     lastSavedRef.current = newData;
     axios.put(BIN_URL, data, { headers: HEADERS }).catch(() => {});
   }, [darkMode, transactions, streakLastReset, readingDates, workoutPlan, synced]);
@@ -163,21 +174,23 @@ export default function App() {
     return () => clearTimeout(t);
   }, [saveToCloud]);
 
-  // ---- Poll for cross-device changes (only when not typing) ----
+  // ---- Poll for cross-device changes (skip while typing or just after local save) ----
   useEffect(() => {
     const interval = setInterval(() => {
-      if (isTyping.current) return;
+      if (typingRef.current || remoteUpdateRef.current) return;
       axios.get(BIN_URL, { headers: HEADERS })
         .then(res => {
           const data = res.data.record;
           const newData = JSON.stringify(data);
-          if (newData === lastSavedRef.current) return; // skip if same
+          if (newData === lastSavedRef.current) return;
+          remoteUpdateRef.current = true;
           lastSavedRef.current = newData;
           setDarkMode(data.darkMode ?? false);
           setTransactions(data.transactions ?? []);
           setStreakLastReset(data.streakLastReset ?? todayStr());
           setReadingDates(data.readingDates ?? []);
           setWorkoutPlan(data.workoutPlan ?? []);
+          setTimeout(() => { remoteUpdateRef.current = false; }, 1000);
         })
         .catch(() => {});
     }, 5000);
@@ -219,15 +232,21 @@ export default function App() {
   const resetStreak = () => { if (streakResetDisabled) return; setStreakLastReset(todayStr()); };
   const markReadToday = () => { if (readingDoneToday) return; setReadingDates((prev) => [...prev, todayStr()]); };
 
-  const addExercise = () =>
-    setWorkoutPlan((prev) => [...prev, { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name: "", tool: "DB", weight: "", reps: 10 }]);
-  const updateExercise = (id, field, value) => {
-    isTyping.current = true;
-    setWorkoutPlan((prev) => prev.map((ex) => (ex.id === id ? { ...ex, [field]: value } : ex)));
-    // Clear typing flag after 2s of no typing
-    clearTimeout(window._typeTimeout);
-    window._typeTimeout = setTimeout(() => { isTyping.current = false; }, 2000);
+  // ---- addExercise uses current filter ----
+  const addExercise = () => {
+    const defaultTool = filter !== "ALL" ? filter : "DB";
+    setWorkoutPlan((prev) => [...prev, { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name: "", tool: defaultTool, weight: "", reps: 10 }]);
   };
+
+  const updateExercise = (id, field, value) => {
+    // Mark as typing
+    typingRef.current = true;
+    if (typeTimerRef.current) clearTimeout(typeTimerRef.current);
+    typeTimerRef.current = setTimeout(() => { typingRef.current = false; }, 2000);
+    
+    setWorkoutPlan((prev) => prev.map((ex) => (ex.id === id ? { ...ex, [field]: value } : ex)));
+  };
+
   const deleteExercise = (id) => setWorkoutPlan((prev) => prev.filter((ex) => ex.id !== id));
 
   const toggleSort = (key) => {
@@ -360,9 +379,11 @@ export default function App() {
           </button>
           {workoutOpen && (
             <div className="px-5 sm:px-6 pb-6">
+              {/* Filter buttons - emoji only */}
               <div className="flex flex-wrap gap-2 mb-4">
-                {["ALL", "DB", "KB", "BB", "BW"].map((f) => (
-                  <button key={f} onClick={() => setFilter(f)} style={{ background: filter === f ? "#7C5A96" : inputBg, color: filter === f ? "#fff" : ink, border: `1px solid ${borderCol}` }} className="rounded-full px-3 py-1 text-xs font-medium transition-colors">{f === "ALL" ? "All" : f}</button>
+                <button onClick={() => setFilter("ALL")} style={{ background: filter === "ALL" ? "#7C5A96" : inputBg, color: filter === "ALL" ? "#fff" : ink, border: `1px solid ${borderCol}` }} className="rounded-full px-3 py-1 text-xs font-medium transition-colors">All</button>
+                {TOOLS.map(t => (
+                  <button key={t.key} onClick={() => setFilter(t.key)} style={{ background: filter === t.key ? "#7C5A96" : inputBg, color: filter === t.key ? "#fff" : ink, border: `1px solid ${borderCol}` }} className="rounded-full px-3 py-1 text-sm transition-colors">{t.emoji}</button>
                 ))}
               </div>
               {workoutPlan.length === 0 ? (
@@ -381,7 +402,11 @@ export default function App() {
                       {sortedWorkouts.map((ex) => (
                         <div key={ex.id} className="grid grid-cols-[56px_1fr_56px_56px_32px] sm:grid-cols-[72px_1fr_72px_72px_32px] gap-2 items-center">
                           <select value={ex.tool || "DB"} onChange={(e) => updateExercise(ex.id, "tool", e.target.value)} style={{ background: inputBg, border: `1px solid ${borderCol}`, color: ink }} className="rounded-lg px-1 py-1.5 text-sm outline-none focus:ring-2 focus:ring-[#7C5A96]">
-                            <option value="DB">DB</option><option value="KB">KB</option><option value="BB">BB</option><option value="BW">BW</option>
+                            <option value="DB">DB</option>
+                            <option value="KB">KB</option>
+                            <option value="BB">BB</option>
+                            <option value="BW">BW</option>
+                            <option value="ERG">ERG</option>
                           </select>
                           <input type="text" placeholder="Exercise name" value={ex.name || ""} onChange={(e) => updateExercise(ex.id, "name", e.target.value)} style={{ background: inputBg, border: `1px solid ${borderCol}`, color: ink }} className="rounded-lg px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-[#7C5A96]" />
                           <input type="number" min="0" placeholder="kg" value={ex.weight || ""} onChange={(e) => updateExercise(ex.id, "weight", e.target.value)} style={{ background: inputBg, border: `1px solid ${borderCol}`, color: ink }} className="rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-[#7C5A96]" />
@@ -398,7 +423,7 @@ export default function App() {
           )}
         </section>
 
-        <p style={{ color: subtle }} className="text-center text-xs mt-8">☁️ Data synced via JSONbin</p>
+        <p style={{ color: subtle }} className="text-center text-xs mt-8">☁️ Data synced by MERDY</p>
       </div>
     </div>
   );
