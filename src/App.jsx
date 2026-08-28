@@ -6,7 +6,7 @@ const MASTER_KEY = "$2a$10$O2F0Os04xfXpTPk7jCdHpeDQGKXiJdwlSlpnuFrlEPSmsZ/SdAMgO
 const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 const HEADERS = { "X-Master-Key": MASTER_KEY, "Content-Type": "application/json" };
 
-// ---------- tool config ----------
+// ---------- tool config (workout) ----------
 const TOOLS = [
   { key: "DB", emoji: "🎤" },
   { key: "KB", emoji: "🥘" },
@@ -14,6 +14,9 @@ const TOOLS = [
   { key: "BW", emoji: "🤽‍♂️" },
   { key: "ERG", emoji: "🚣" },
 ];
+
+// ---------- money categories ----------
+const CATEGORIES = ["Food", "Grocery", "Entertainment", "Clothes", "Acc"];
 
 // ---------- date helpers ----------
 const pad = (n) => String(n).padStart(2, "0");
@@ -136,6 +139,7 @@ export default function App() {
 
   const [amount, setAmount] = useState("");
   const [txType, setTxType] = useState("income");
+  const [category, setCategory] = useState("Food"); // new state for category
   const [note, setNote] = useState("");
 
   // ---- Load from JSONbin ----
@@ -223,7 +227,14 @@ export default function App() {
     e.preventDefault();
     const num = parseFloat(amount);
     if (!num || num <= 0) return;
-    setTransactions((prev) => [{ id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, amount: num, type: txType, note: note.trim(), date: new Date().toISOString() }, ...prev]);
+    setTransactions((prev) => [{
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      amount: num,
+      type: txType,
+      category: category, // include category
+      note: note.trim(),
+      date: new Date().toISOString(),
+    }, ...prev]);
     setAmount("");
     setNote("");
   };
@@ -331,6 +342,7 @@ export default function App() {
           </div>
         </div>
 
+        {/* Money Tracker with category */}
         <section style={{ background: cardBg, border: `1px solid ${borderCol}` }} className="rounded-2xl shadow-sm p-5 sm:p-6 mb-6">
           <h2 style={{ fontFamily: F_DISPLAY }} className="text-lg font-semibold mb-4">Money Tracker</h2>
           <form onSubmit={addTransaction} className="flex flex-wrap gap-3 mb-5">
@@ -339,9 +351,14 @@ export default function App() {
               <option value="income">Income</option>
               <option value="expense">Expense</option>
             </select>
+            {/* Category dropdown */}
+            <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ background: inputBg, border: `1px solid ${borderCol}`, color: ink }} className="rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#5B7F62]">
+              {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+            </select>
             <input type="text" placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} style={{ background: inputBg, border: `1px solid ${borderCol}`, color: ink }} className="rounded-xl px-3 py-2 text-sm flex-1 min-w-[140px] outline-none focus:ring-2 focus:ring-[#5B7F62]" />
             <button type="submit" className="rounded-xl px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity flex items-center gap-1" style={{ background: "#5B7F62" }}><PlusIcon className="w-4 h-4" /> Add</button>
           </form>
+
           <div>
             <button onClick={() => setHistoryOpen(o => !o)} className="flex items-center gap-2 text-sm font-medium mb-3 hover:opacity-80">
               <ChevronIcon className={`w-4 h-4 transition-transform ${historyOpen ? "rotate-180" : ""}`} />
@@ -357,7 +374,14 @@ export default function App() {
                       <li key={t.id} className="flex items-center justify-between py-2.5 gap-3">
                         <div className="flex items-center gap-3 min-w-0">
                           <span style={{ fontFamily: F_MONO, color: subtle }} className="text-xs w-14 shrink-0">{formatShortDate(t.date)}</span>
-                          <span className="text-sm truncate">{t.note || (t.type === "income" ? "Income" : "Expense")}</span>
+                          <div className="flex items-center gap-2 min-w-0">
+                            {t.category && (
+                              <span style={{ background: darkMode ? "#2A2A2A" : "#F0EFEA", color: ink }} className="text-xs px-2 py-0.5 rounded-full shrink-0">
+                                {t.category}
+                              </span>
+                            )}
+                            <span className="text-sm truncate">{t.note || (t.type === "income" ? "Income" : "Expense")}</span>
+                          </div>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
                           <span style={{ fontFamily: F_MONO, color: t.type === "income" ? "#5B7F62" : "#C1543C" }} className="text-sm font-medium">{t.type === "income" ? "+" : "–"}₩{Number(t.amount).toLocaleString()}</span>
@@ -372,6 +396,7 @@ export default function App() {
           </div>
         </section>
 
+        {/* Workout Record */}
         <section style={{ background: cardBg, border: `1px solid ${borderCol}` }} className="rounded-2xl shadow-sm overflow-hidden">
           <button onClick={() => setWorkoutOpen((o) => !o)} className="w-full flex items-center justify-between px-5 sm:px-6 py-4 text-left">
             <h2 style={{ fontFamily: F_DISPLAY }} className="text-lg font-semibold">💪 Workout Record</h2>
