@@ -139,8 +139,9 @@ export default function App() {
 
   const [amount, setAmount] = useState("");
   const [txType, setTxType] = useState("income");
-  const [category, setCategory] = useState("Food"); // new state for category
+  const [category, setCategory] = useState("Food");
   const [note, setNote] = useState("");
+  const [spendPeriod, setSpendPeriod] = useState("monthly"); // new state for visualization
 
   // ---- Load from JSONbin ----
   useEffect(() => {
@@ -222,6 +223,28 @@ export default function App() {
   const readingStreak = useMemo(() => calcReadingStreak(readingDates), [readingDates]);
   const readingDoneToday = readingDates.includes(todayStr());
 
+  // ---- Spending breakdown data ----
+  const spendData = useMemo(() => {
+    const now = new Date();
+    const cutoff = new Date();
+    if (spendPeriod === "weekly") {
+      cutoff.setDate(now.getDate() - 7);
+    } else {
+      cutoff.setDate(now.getDate() - 30);
+    }
+    const expenses = transactions.filter(t => t.type === "expense" && new Date(t.date) >= cutoff);
+    const totals = {};
+    CATEGORIES.forEach(cat => totals[cat] = 0);
+    expenses.forEach(t => {
+      if (t.category && totals[t.category] !== undefined) {
+        totals[t.category] += Number(t.amount);
+      }
+    });
+    return totals;
+  }, [transactions, spendPeriod]);
+
+  const maxSpend = Math.max(...Object.values(spendData), 0);
+
   // ---- handlers ----
   const addTransaction = (e) => {
     e.preventDefault();
@@ -231,7 +254,7 @@ export default function App() {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       amount: num,
       type: txType,
-      category: category, // include category
+      category: category,
       note: note.trim(),
       date: new Date().toISOString(),
     }, ...prev]);
@@ -250,11 +273,9 @@ export default function App() {
   };
 
   const updateExercise = (id, field, value) => {
-    // Mark as typing
     typingRef.current = true;
     if (typeTimerRef.current) clearTimeout(typeTimerRef.current);
     typeTimerRef.current = setTimeout(() => { typingRef.current = false; }, 2000);
-    
     setWorkoutPlan((prev) => prev.map((ex) => (ex.id === id ? { ...ex, [field]: value } : ex)));
   };
 
@@ -342,7 +363,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Money Tracker with category */}
+        {/* Money Tracker with category and visualization */}
         <section style={{ background: cardBg, border: `1px solid ${borderCol}` }} className="rounded-2xl shadow-sm p-5 sm:p-6 mb-6">
           <h2 style={{ fontFamily: F_DISPLAY }} className="text-lg font-semibold mb-4">Money Tracker</h2>
           <form onSubmit={addTransaction} className="flex flex-wrap gap-3 mb-5">
@@ -351,7 +372,6 @@ export default function App() {
               <option value="income">Income</option>
               <option value="expense">Expense</option>
             </select>
-            {/* Category dropdown */}
             <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ background: inputBg, border: `1px solid ${borderCol}`, color: ink }} className="rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#5B7F62]">
               {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
             </select>
@@ -359,6 +379,37 @@ export default function App() {
             <button type="submit" className="rounded-xl px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity flex items-center gap-1" style={{ background: "#5B7F62" }}><PlusIcon className="w-4 h-4" /> Add</button>
           </form>
 
+          {/* Spending Visualization */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold">Spending Breakdown</h3>
+              <div className="flex gap-2">
+                <button onClick={() => setSpendPeriod("weekly")} className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${spendPeriod === "weekly" ? "bg-[#7C5A96] text-white" : ""}`} style={{ background: spendPeriod === "weekly" ? "#7C5A96" : inputBg, color: spendPeriod === "weekly" ? "#fff" : ink, border: `1px solid ${borderCol}` }}>Weekly</button>
+                <button onClick={() => setSpendPeriod("monthly")} className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${spendPeriod === "monthly" ? "bg-[#7C5A96] text-white" : ""}`} style={{ background: spendPeriod === "monthly" ? "#7C5A96" : inputBg, color: spendPeriod === "monthly" ? "#fff" : ink, border: `1px solid ${borderCol}` }}>Monthly</button>
+              </div>
+            </div>
+            {maxSpend === 0 ? (
+              <p style={{ color: subtle }} className="text-sm text-center py-4">No expenses in this period.</p>
+            ) : (
+              <div className="space-y-2">
+                {CATEGORIES.map(cat => {
+                  const val = spendData[cat] || 0;
+                  const pct = (val / maxSpend) * 100;
+                  return (
+                    <div key={cat} className="flex items-center gap-3">
+                      <span className="text-xs w-24 shrink-0">{cat}</span>
+                      <div className="flex-1 h-5 bg-black/5 dark:bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "#5B7F62" }}></div>
+                      </div>
+                      <span style={{ fontFamily: F_MONO }} className="text-xs w-16 text-right shrink-0">₩{val.toLocaleString()}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* History */}
           <div>
             <button onClick={() => setHistoryOpen(o => !o)} className="flex items-center gap-2 text-sm font-medium mb-3 hover:opacity-80">
               <ChevronIcon className={`w-4 h-4 transition-transform ${historyOpen ? "rotate-180" : ""}`} />
@@ -404,7 +455,6 @@ export default function App() {
           </button>
           {workoutOpen && (
             <div className="px-5 sm:px-6 pb-6">
-              {/* Filter buttons - emoji only */}
               <div className="flex flex-wrap gap-2 mb-4">
                 <button onClick={() => setFilter("ALL")} style={{ background: filter === "ALL" ? "#7C5A96" : inputBg, color: filter === "ALL" ? "#fff" : ink, border: `1px solid ${borderCol}` }} className="rounded-full px-3 py-1 text-xs font-medium transition-colors">All</button>
                 {TOOLS.map(t => (
