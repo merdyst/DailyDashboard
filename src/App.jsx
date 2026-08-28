@@ -141,7 +141,8 @@ export default function App() {
   const [txType, setTxType] = useState("income");
   const [category, setCategory] = useState("Food");
   const [note, setNote] = useState("");
-  const [spendPeriod, setSpendPeriod] = useState("monthly"); // new state for visualization
+  const [txDate, setTxDate] = useState(todayStr()); // NEW: date input state
+  const [spendPeriod, setSpendPeriod] = useState("monthly"); // "weekly", "monthly", "all"
 
   // ---- Load from JSONbin ----
   useEffect(() => {
@@ -226,13 +227,17 @@ export default function App() {
   // ---- Spending breakdown data ----
   const spendData = useMemo(() => {
     const now = new Date();
-    const cutoff = new Date();
+    const cutoff = new Date(0); // default: all time
     if (spendPeriod === "weekly") {
       cutoff.setDate(now.getDate() - 7);
-    } else {
+    } else if (spendPeriod === "monthly") {
       cutoff.setDate(now.getDate() - 30);
     }
-    const expenses = transactions.filter(t => t.type === "expense" && new Date(t.date) >= cutoff);
+    const expenses = transactions.filter(t => {
+      if (t.type !== "expense") return false;
+      if (spendPeriod === "all") return true;
+      return new Date(t.date) >= cutoff;
+    });
     const totals = {};
     CATEGORIES.forEach(cat => totals[cat] = 0);
     expenses.forEach(t => {
@@ -250,16 +255,19 @@ export default function App() {
     e.preventDefault();
     const num = parseFloat(amount);
     if (!num || num <= 0) return;
+    // Convert selected date (YYYY-MM-DD) to ISO string at noon local time
+    const dateObj = new Date(txDate + "T12:00:00");
     setTransactions((prev) => [{
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       amount: num,
       type: txType,
       category: category,
       note: note.trim(),
-      date: new Date().toISOString(),
+      date: dateObj.toISOString(),
     }, ...prev]);
     setAmount("");
     setNote("");
+    setTxDate(todayStr()); // reset date to today after adding
   };
   const deleteTransaction = (id) => setTransactions((prev) => prev.filter((t) => t.id !== id));
 
@@ -363,7 +371,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Money Tracker with category and visualization */}
+        {/* Money Tracker with category, date, and visualization */}
         <section style={{ background: cardBg, border: `1px solid ${borderCol}` }} className="rounded-2xl shadow-sm p-5 sm:p-6 mb-6">
           <h2 style={{ fontFamily: F_DISPLAY }} className="text-lg font-semibold mb-4">Money Tracker</h2>
           <form onSubmit={addTransaction} className="flex flex-wrap gap-3 mb-5">
@@ -375,6 +383,7 @@ export default function App() {
             <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ background: inputBg, border: `1px solid ${borderCol}`, color: ink }} className="rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#5B7F62]">
               {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
             </select>
+            <input type="date" value={txDate} onChange={(e) => setTxDate(e.target.value)} style={{ background: inputBg, border: `1px solid ${borderCol}`, color: ink }} className="rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#5B7F62]" />
             <input type="text" placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} style={{ background: inputBg, border: `1px solid ${borderCol}`, color: ink }} className="rounded-xl px-3 py-2 text-sm flex-1 min-w-[140px] outline-none focus:ring-2 focus:ring-[#5B7F62]" />
             <button type="submit" className="rounded-xl px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity flex items-center gap-1" style={{ background: "#5B7F62" }}><PlusIcon className="w-4 h-4" /> Add</button>
           </form>
@@ -386,6 +395,7 @@ export default function App() {
               <div className="flex gap-2">
                 <button onClick={() => setSpendPeriod("weekly")} className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${spendPeriod === "weekly" ? "bg-[#7C5A96] text-white" : ""}`} style={{ background: spendPeriod === "weekly" ? "#7C5A96" : inputBg, color: spendPeriod === "weekly" ? "#fff" : ink, border: `1px solid ${borderCol}` }}>Weekly</button>
                 <button onClick={() => setSpendPeriod("monthly")} className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${spendPeriod === "monthly" ? "bg-[#7C5A96] text-white" : ""}`} style={{ background: spendPeriod === "monthly" ? "#7C5A96" : inputBg, color: spendPeriod === "monthly" ? "#fff" : ink, border: `1px solid ${borderCol}` }}>Monthly</button>
+                <button onClick={() => setSpendPeriod("all")} className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${spendPeriod === "all" ? "bg-[#7C5A96] text-white" : ""}`} style={{ background: spendPeriod === "all" ? "#7C5A96" : inputBg, color: spendPeriod === "all" ? "#fff" : ink, border: `1px solid ${borderCol}` }}>All Time</button>
               </div>
             </div>
             {maxSpend === 0 ? (
