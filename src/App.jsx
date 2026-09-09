@@ -9,8 +9,19 @@ const HEADERS = { "X-Master-Key": MASTER_KEY, "Content-Type": "application/json"
 // ---------- config ----------
 const CYCLE_START_DAY = 25;
 const ROUND_TO = 100;
-const PAGE_SIZE = 10;
+const TX_PAGE_SIZE = 5;
+const WK_PAGE_SIZE = 10;
+const HIGHLIGHT_MAX = 200;
 const FONT = "'Poppins', system-ui, sans-serif";
+
+// brand (from Past Works guide)
+const BLUE = "#2F5BEA";
+const BLUE_2 = "#1A73E8";
+const TEAL = "#12B3A8";
+const GREEN = "#1AA971";
+const AMBER = "#F5A623";
+const VIOLET = "#7C6BF0";
+const RED = "#E5544B";
 
 const TOOLS = [
   { key: "BB", label: "Barbell" },
@@ -21,14 +32,8 @@ const TOOLS = [
 ];
 
 const CATEGORIES = ["Food", "Grocery", "Entertainment", "Clothes", "Acc"];
-const CAT_COLORS = {
-  Food: "#C9F24D",
-  Grocery: "#4FD1A5",
-  Entertainment: "#A78BFA",
-  Clothes: "#60A5FA",
-  Acc: "#F5B841",
-};
-const OTHER = "Other";
+const CAT_LABELS = { Food: "Food", Grocery: "Grocery", Entertainment: "Entertainment", Clothes: "Clothes", Acc: "Accessories" };
+const CAT_COLORS = { Food: BLUE, Grocery: TEAL, Entertainment: VIOLET, Clothes: GREEN, Acc: AMBER };
 
 // ---------- date helpers ----------
 const pad = (n) => String(n).padStart(2, "0");
@@ -97,7 +102,19 @@ const PlusIcon = (p) => (<svg {...s(p)}><path d="M12 5v14M5 12h14" /></svg>);
 const ArrowIcon = (p) => (<svg {...s(p)}><path d="M15 6l-6 6 6 6" /></svg>);
 const FlameIcon = (p) => (<svg {...s(p)}><path d="M12 3c.6 3.2 3 4.2 3.9 6.4a5.9 5.9 0 1 1-9.6 1.7C7.6 8.4 10.4 8 12 3Z" /></svg>);
 const BookIcon = (p) => (<svg {...s(p)}><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v15H6.5A2.5 2.5 0 0 0 4 20.5Z" /><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H19v3H6.5" /></svg>);
+const PenIcon = (p) => (<svg {...s(p)}><path d="M4 20h4l10-10a2.1 2.1 0 0 0-3-3L5 17v3Z" /></svg>);
+const CheckIcon = (p) => (<svg {...s(p)}><path d="M5 12.5 10 17l9-10" /></svg>);
+const CalendarIcon = (p) => (<svg {...s(p)}><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 9.5h17M8 3v3.5M16 3v3.5" /></svg>);
 
+// category icons
+const FoodIcon = (p) => (<svg {...s(p)}><path d="M4.5 3v6a2.8 2.8 0 0 0 5.6 0V3M7.3 11.5V21" /><path d="M17.5 3c-1.4 2-2 4.2-2 6.3 0 1.5.9 2.4 2 2.4s2-.9 2-2.4c0-2.1-.6-4.3-2-6.3ZM17.5 11.7V21" /></svg>);
+const GroceryIcon = (p) => (<svg {...s(p)}><path d="M4.5 8h15l-1.4 10.4a2 2 0 0 1-2 1.7H7.9a2 2 0 0 1-2-1.7L4.5 8Z" /><path d="m8.5 8 3.5-5 3.5 5M10 12v4M14 12v4" /></svg>);
+const EntertainmentIcon = (p) => (<svg {...s(p)}><circle cx="12" cy="12" r="8.5" /><path d="M10.3 9.2 15 12l-4.7 2.8V9.2Z" /></svg>);
+const ClothesIcon = (p) => (<svg {...s(p)}><path d="M8.5 3.5 5 5.5 3 9l3.2 1.7V20.5h11.6V10.7L21 9l-2-3.5-3.5-2" /><path d="M8.5 3.5c0 1.9 1.6 3 3.5 3s3.5-1.1 3.5-3" /></svg>);
+const AccessoriesIcon = (p) => (<svg {...s(p)}><circle cx="12" cy="12" r="4.6" /><path d="M9 7.6 9.6 3h4.8l.6 4.6M9 16.4 9.6 21h4.8l.6-4.6" /></svg>);
+const CAT_ICONS = { Food: FoodIcon, Grocery: GroceryIcon, Entertainment: EntertainmentIcon, Clothes: ClothesIcon, Acc: AccessoriesIcon };
+
+// workout icons
 const DumbbellIcon = (p) => (<svg {...s(p)}><path d="M4 9v6M7 7v10M10 11h4M17 7v10M20 9v6" /></svg>);
 const KettlebellIcon = (p) => (<svg {...s(p)}><path d="M9 7a3 3 0 0 1 6 0" /><path d="M9.2 7.4C7 8.6 5.5 11 5.5 13.6c0 2.3 1 4 2.2 5.4h8.6c1.2-1.4 2.2-3.1 2.2-5.4 0-2.6-1.5-5-3.7-6.2" /></svg>);
 const BarbellIcon = (p) => (<svg {...s(p)}><path d="M3 10v4M6 7.5v9M8.5 12h7M18 7.5v9M21 10v4" /></svg>);
@@ -151,6 +168,7 @@ export default function App() {
   const [streakResets, setStreakResets] = useState([]);
   const [readingDates, setReadingDates] = useState([]);
   const [workoutPlan, setWorkoutPlan] = useState([]);
+  const [weekHighlight, setWeekHighlight] = useState("");
   const [filter, setFilter] = useState("ALL");
   const [sortKey, setSortKey] = useState("name");
   const [sortDir, setSortDir] = useState("asc");
@@ -170,8 +188,9 @@ export default function App() {
   const [txPage, setTxPage] = useState(1);
   const [wkPage, setWkPage] = useState(1);
   const [today, setToday] = useState(todayStr());
+  const [editingHighlight, setEditingHighlight] = useState(false);
+  const [highlightDraft, setHighlightDraft] = useState("");
 
-  // Poppins
   useEffect(() => {
     const id = "poppins-font";
     if (document.getElementById(id)) return;
@@ -182,7 +201,6 @@ export default function App() {
     document.head.appendChild(link);
   }, []);
 
-  // date rolls over on its own
   useEffect(() => {
     const i = setInterval(() => {
       const d = todayStr();
@@ -201,6 +219,7 @@ export default function App() {
         setStreakResets(data.streakResets ?? (data.streakLastReset ? [data.streakLastReset] : []));
         setReadingDates(data.readingDates ?? []);
         setWorkoutPlan(data.workoutPlan ?? []);
+        setWeekHighlight(data.weekHighlight ?? "");
         lastSavedRef.current = JSON.stringify(data);
         setSynced(true);
       })
@@ -211,12 +230,12 @@ export default function App() {
   const saveToCloud = useCallback(() => {
     if (!synced || isFirstLoad.current) { isFirstLoad.current = false; return; }
     if (typingRef.current) return;
-    const data = { darkMode, transactions, streakLastReset, streakResets, readingDates, workoutPlan };
+    const data = { darkMode, transactions, streakLastReset, streakResets, readingDates, workoutPlan, weekHighlight };
     const newData = JSON.stringify(data);
     if (newData === lastSavedRef.current) return;
     lastSavedRef.current = newData;
     axios.put(BIN_URL, data, { headers: HEADERS }).catch(() => {});
-  }, [darkMode, transactions, streakLastReset, streakResets, readingDates, workoutPlan, synced]);
+  }, [darkMode, transactions, streakLastReset, streakResets, readingDates, workoutPlan, weekHighlight, synced]);
 
   useEffect(() => {
     const t = setTimeout(saveToCloud, 1000);
@@ -239,6 +258,7 @@ export default function App() {
           setStreakResets(data.streakResets ?? (data.streakLastReset ? [data.streakLastReset] : []));
           setReadingDates(data.readingDates ?? []);
           setWorkoutPlan(data.workoutPlan ?? []);
+          setWeekHighlight(data.weekHighlight ?? "");
           setTimeout(() => { remoteUpdateRef.current = false; }, 1000);
         })
         .catch(() => {});
@@ -264,7 +284,7 @@ export default function App() {
     const daysLeft = Math.max(diffDays(today, cycle.end) + 1, 1);
     const raw = (savings + spentToday) / daysLeft;
     const allowance = raw > 0 ? Math.floor(raw / ROUND_TO) * ROUND_TO : 0;
-    return { spentCycle, spentToday, daysLeft, allowance, leftToday: allowance - spentToday, inCycle };
+    return { spentCycle, spentToday, daysLeft, allowance, inCycle };
   }, [txs, cycle, today, savings]);
 
   const streakDays = streakLastReset ? Math.max(diffDays(streakLastReset, today), 0) : 0;
@@ -286,14 +306,13 @@ export default function App() {
     return txs.filter(t => t.day >= c.start && t.day <= c.end);
   }, [txs, spendPeriod, cycle]);
 
-  // uncategorised entries stay out of the chart
   const spendData = useMemo(() => {
     const totals = {};
     periodTx.filter(t => t.type === "expense").forEach(t => {
       if (t.category && CATEGORIES.includes(t.category)) totals[t.category] = (totals[t.category] || 0) + t.amt;
     });
     return Object.entries(totals)
-      .map(([label, value]) => ({ label, value, color: CAT_COLORS[label] }))
+      .map(([key, value]) => ({ key, label: CAT_LABELS[key], value, color: CAT_COLORS[key] }))
       .filter(d => d.value > 0)
       .sort((a, b) => b.value - a.value);
   }, [periodTx]);
@@ -339,6 +358,10 @@ export default function App() {
     setReadingDates(prev => [...prev, today]);
   };
 
+  const startEditHighlight = () => { setHighlightDraft(weekHighlight); setEditingHighlight(true); };
+  const saveHighlight = () => { setWeekHighlight(highlightDraft.trim()); setEditingHighlight(false); };
+  const clearHighlight = () => { setWeekHighlight(""); setHighlightDraft(""); setEditingHighlight(false); };
+
   const addExercise = () => {
     setWorkoutPlan(prev => [...prev, {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -358,9 +381,9 @@ export default function App() {
   };
 
   const sortedTx = useMemo(() => [...txs].sort((a, b) => (a.day < b.day ? 1 : a.day > b.day ? -1 : 0)), [txs]);
-  const txPages = Math.max(Math.ceil(sortedTx.length / PAGE_SIZE), 1);
+  const txPages = Math.max(Math.ceil(sortedTx.length / TX_PAGE_SIZE), 1);
   const txCur = Math.min(txPage, txPages);
-  const txSlice = sortedTx.slice((txCur - 1) * PAGE_SIZE, txCur * PAGE_SIZE);
+  const txSlice = sortedTx.slice((txCur - 1) * TX_PAGE_SIZE, txCur * TX_PAGE_SIZE);
 
   const sortedWorkouts = useMemo(() => {
     const list = workoutPlan.filter(ex => filter === "ALL" || ex.tool === filter);
@@ -372,22 +395,20 @@ export default function App() {
       return 0;
     });
   }, [workoutPlan, filter, sortKey, sortDir]);
-  const wkPages = Math.max(Math.ceil(sortedWorkouts.length / PAGE_SIZE), 1);
+  const wkPages = Math.max(Math.ceil(sortedWorkouts.length / WK_PAGE_SIZE), 1);
   const wkCur = Math.min(wkPage, wkPages);
-  const wkSlice = sortedWorkouts.slice((wkCur - 1) * PAGE_SIZE, wkCur * PAGE_SIZE);
+  const wkSlice = sortedWorkouts.slice((wkCur - 1) * WK_PAGE_SIZE, wkCur * WK_PAGE_SIZE);
   useEffect(() => { setWkPage(1); }, [filter]);
 
   // ---- theme ----
   const t = darkMode
-    ? { bg: "#0B0C0A", card: "#16181A", soft: "#1E2124", border: "rgba(255,255,255,0.07)", ink: "#F2F4F0", subtle: "rgba(242,244,240,0.5)", track: "rgba(255,255,255,0.07)" }
-    : { bg: "#F2F3EF", card: "#FFFFFF", soft: "#F5F6F2", border: "rgba(20,23,15,0.08)", ink: "#14170F", subtle: "rgba(20,23,15,0.5)", track: "rgba(20,23,15,0.07)" };
-  const lime = "#C9F24D";
-  const limeInk = "#14170F";
-  const red = "#F0705E";
+    ? { bg: "#0A0C10", card: "#141821", soft: "#1C2130", border: "rgba(255,255,255,0.07)", ink: "#EEF1F7", subtle: "rgba(238,241,247,0.5)", track: "rgba(255,255,255,0.07)" }
+    : { bg: "#F6F7FB", card: "#FFFFFF", soft: "#F1F4FA", border: "rgba(18,23,43,0.08)", ink: "#12172B", subtle: "rgba(18,23,43,0.5)", track: "rgba(18,23,43,0.07)" };
 
   const card = { background: t.card, border: `1px solid ${t.border}` };
   const input = { background: t.soft, border: `1px solid ${t.border}`, color: t.ink };
-  const chip = (on) => ({ background: on ? lime : t.soft, color: on ? limeInk : t.subtle, border: `1px solid ${on ? lime : t.border}` });
+  const chip = (on) => ({ background: on ? BLUE : t.soft, color: on ? "#fff" : t.subtle, border: `1px solid ${on ? BLUE : t.border}` });
+  const brandGrad = `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_2} 100%)`;
 
   if (loading) {
     return (
@@ -415,63 +436,70 @@ export default function App() {
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
 
-          {/* ---------------- left: visualization ---------------- */}
+          {/* ---------------- left ---------------- */}
           <div className="lg:col-span-3 space-y-4">
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {/* balance */}
-              <div style={card} className="sm:col-span-2 rounded-3xl p-6">
+              {/* savings */}
+              <div style={{ ...card, backgroundImage: `radial-gradient(120% 120% at 100% 0%, ${BLUE}1F 0%, transparent 55%)` }} className="sm:col-span-2 rounded-3xl p-6">
                 <p style={{ color: t.subtle }} className="text-xs">Total savings</p>
                 <p className="text-4xl sm:text-5xl font-semibold tabular-nums mt-2 tracking-tight">{won(savings)}</p>
 
-                <div className="grid grid-cols-3 gap-2 mt-6">
-                  <div style={{ background: lime, color: limeInk }} className="rounded-2xl px-3 py-3">
-                    <p className="text-[11px] opacity-70">Today</p>
-                    <p className="text-base font-semibold tabular-nums mt-0.5">{won(budget.allowance)}</p>
+                <div className="grid grid-cols-2 gap-3 mt-6">
+                  <div style={{ backgroundImage: brandGrad, color: "#fff" }} className="rounded-2xl px-4 py-3.5">
+                    <p className="text-[11px] opacity-80">You can spend today</p>
+                    <p className="text-xl font-semibold tabular-nums mt-1">{won(budget.allowance)}</p>
                   </div>
-                  <div style={{ background: t.soft }} className="rounded-2xl px-3 py-3">
-                    <p style={{ color: t.subtle }} className="text-[11px]">Spent</p>
-                    <p className="text-base font-semibold tabular-nums mt-0.5">{won(budget.spentToday)}</p>
-                  </div>
-                  <div style={{ background: t.soft }} className="rounded-2xl px-3 py-3">
-                    <p style={{ color: t.subtle }} className="text-[11px]">Left</p>
-                    <p className="text-base font-semibold tabular-nums mt-0.5" style={{ color: budget.leftToday < 0 ? red : t.ink }}>{won(budget.leftToday)}</p>
+                  <div style={{ background: t.soft }} className="rounded-2xl px-4 py-3.5 flex items-center gap-3">
+                    <span style={{ background: `${BLUE}1F`, color: BLUE }} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0">
+                      <CalendarIcon className="w-4 h-4" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-xl font-semibold tabular-nums leading-none">{budget.daysLeft}<span style={{ color: t.subtle }} className="text-xs font-normal ml-1">days</span></p>
+                      <p style={{ color: t.subtle }} className="text-[11px] mt-1 truncate">until reset</p>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* streaks */}
-              <div style={card} className="rounded-3xl p-5 flex flex-col justify-between gap-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span style={{ background: t.soft }} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"><FlameIcon className="w-4 h-4" /></span>
-                    <div className="min-w-0">
-                      <p className="text-lg font-semibold tabular-nums leading-none">{streakDays}<span style={{ color: t.subtle }} className="text-xs font-normal ml-1">d</span></p>
-                      <p style={{ color: t.subtle }} className="text-[11px] mt-1 truncate">Streak · best {streakLongest}</p>
-                    </div>
+              <div style={card} className="rounded-3xl px-4 py-5 flex flex-col justify-center gap-4">
+                <div className="flex items-center">
+                  <div className="w-[30%] flex justify-center" style={{ color: BLUE }}><FlameIcon className="w-10 h-10" /></div>
+                  <div className="w-[30%] text-center">
+                    <p className="text-2xl font-semibold tabular-nums leading-none">{streakDays}</p>
+                    <p style={{ color: t.subtle }} className="text-[10px] mt-1">days</p>
                   </div>
-                  <button onClick={resetStreak} disabled={streakResetDisabled} style={{ background: t.soft, color: streakResetDisabled ? t.subtle : red }} className={`rounded-full px-3 py-1.5 text-xs font-medium shrink-0 ${streakResetDisabled ? "opacity-50" : "hover:opacity-80"}`}>Reset</button>
+                  <div className="w-[30%] flex justify-center">
+                    <button onClick={resetStreak} disabled={streakResetDisabled} style={{ background: t.soft, color: streakResetDisabled ? t.subtle : RED }} className={`rounded-full px-3 py-1.5 text-xs font-medium ${streakResetDisabled ? "opacity-50" : "hover:opacity-80"}`}>Reset</button>
+                  </div>
+                  <div className="w-[10%] text-right">
+                    <p style={{ color: t.subtle }} className="text-sm font-medium tabular-nums" title="Longest streak">{streakLongest}</p>
+                  </div>
                 </div>
 
                 <div style={{ borderTop: `1px solid ${t.border}` }} />
 
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span style={{ background: t.soft }} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"><BookIcon className="w-4 h-4" /></span>
-                    <div className="min-w-0">
-                      <p className="text-lg font-semibold tabular-nums leading-none">{readingStreak}<span style={{ color: t.subtle }} className="text-xs font-normal ml-1">d</span></p>
-                      <p style={{ color: t.subtle }} className="text-[11px] mt-1 truncate">Reading · best {readingLongest}</p>
-                    </div>
+                <div className="flex items-center">
+                  <div className="w-[30%] flex justify-center" style={{ color: TEAL }}><BookIcon className="w-10 h-10" /></div>
+                  <div className="w-[30%] text-center">
+                    <p className="text-2xl font-semibold tabular-nums leading-none">{readingStreak}</p>
+                    <p style={{ color: t.subtle }} className="text-[10px] mt-1">days</p>
                   </div>
-                  <button onClick={markReadToday} disabled={readingDoneToday} style={readingDoneToday ? { background: t.soft, color: t.subtle } : { background: lime, color: limeInk }} className={`rounded-full px-3 py-1.5 text-xs font-medium shrink-0 ${readingDoneToday ? "opacity-60" : "hover:opacity-90"}`}>
-                    {readingDoneToday ? "Done" : "Read"}
-                  </button>
+                  <div className="w-[30%] flex justify-center">
+                    <button onClick={markReadToday} disabled={readingDoneToday} style={readingDoneToday ? { background: t.soft, color: t.subtle } : { backgroundImage: brandGrad, color: "#fff" }} className={`rounded-full px-3 py-1.5 text-xs font-medium ${readingDoneToday ? "opacity-60" : "hover:opacity-90"}`}>
+                      {readingDoneToday ? "Done" : "Read"}
+                    </button>
+                  </div>
+                  <div className="w-[10%] text-right">
+                    <p style={{ color: t.subtle }} className="text-sm font-medium tabular-nums" title="Longest streak">{readingLongest}</p>
+                  </div>
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {/* donut */}
+              {/* breakdown */}
               <div style={card} className="rounded-3xl p-5">
                 <h2 className="text-sm font-medium mb-4">Breakdown</h2>
                 {spendTotal === 0 ? (
@@ -481,7 +509,7 @@ export default function App() {
                     <Donut data={spendData} total={spendTotal} track={t.track} ink={t.ink} centerValue={wonShort(spendTotal)} centerLabel="spent" />
                     <div className="space-y-2 mt-5">
                       {spendData.map(d => (
-                        <div key={d.label} className="flex items-center gap-2">
+                        <div key={d.key} className="flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full shrink-0" style={{ background: d.color }} />
                           <span className="text-xs flex-1 truncate">{d.label}</span>
                           <span style={{ color: t.subtle }} className="text-[11px] tabular-nums">{Math.round((d.value / spendTotal) * 100)}%</span>
@@ -493,7 +521,7 @@ export default function App() {
                 )}
               </div>
 
-              {/* daily chart */}
+              {/* daily spend */}
               <div style={card} className="sm:col-span-2 rounded-3xl p-5 flex flex-col">
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div>
@@ -511,15 +539,16 @@ export default function App() {
                   {dailyBars.map(b => (
                     <div key={b.day} className="flex-1 h-full flex flex-col justify-end items-center relative">
                       {b.isToday && b.value > 0 && (
-                        <span style={{ background: lime, color: limeInk }} className="absolute bottom-full mb-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-md whitespace-nowrap z-10">{wonShort(b.value)}</span>
+                        <span style={{ backgroundImage: brandGrad, color: "#fff" }} className="absolute bottom-full mb-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-md whitespace-nowrap z-10">{wonShort(b.value)}</span>
                       )}
                       <div
                         className="w-full rounded-md transition-all"
                         title={`${shortDate(b.day)} ${won(b.value)}`}
                         style={{
                           height: `${Math.max((b.value / maxBar) * 100, b.value > 0 ? 4 : 2)}%`,
-                          background: b.isToday ? lime : b.future ? t.track : t.subtle,
-                          opacity: b.future ? 0.35 : b.isToday ? 1 : 0.55,
+                          backgroundImage: b.isToday ? brandGrad : "none",
+                          background: b.isToday ? undefined : b.future ? t.track : t.subtle,
+                          opacity: b.future ? 0.35 : b.isToday ? 1 : 0.5,
                         }}
                       />
                     </div>
@@ -532,9 +561,9 @@ export default function App() {
               </div>
             </div>
 
-            {/* transactions */}
+            {/* money tracker */}
             <div style={card} className="rounded-3xl p-5">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-medium">Money tracker</h2>
                 <span style={{ color: t.subtle }} className="text-xs tabular-nums">{transactions.length}</span>
               </div>
@@ -545,17 +574,18 @@ export default function App() {
                   <div className="space-y-1">
                     {txSlice.map(tx => {
                       const color = CAT_COLORS[tx.category] || t.subtle;
+                      const Icon = CAT_ICONS[tx.category];
                       return (
                         <div key={tx.id} className="flex items-center gap-3 py-2.5 group">
-                          <span className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0" style={{ background: `${color}22`, color }}>
-                            {(tx.category || OTHER).slice(0, 1)}
+                          <span className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: `${color}1F`, color }}>
+                            {Icon ? <Icon className="w-4 h-4" /> : <PlusIcon className="w-4 h-4 rotate-45" />}
                           </span>
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm truncate">{tx.note || tx.category || (tx.type === "income" ? "Income" : "Expense")}</p>
-                            <p style={{ color: t.subtle }} className="text-[11px]">{tx.category || OTHER}</p>
+                            <p className="text-sm truncate">{tx.note || CAT_LABELS[tx.category] || (tx.type === "income" ? "Income" : "Expense")}</p>
+                            <p style={{ color: t.subtle }} className="text-[11px]">{CAT_LABELS[tx.category] || "Other"}</p>
                           </div>
                           <span style={{ color: t.subtle }} className="text-xs tabular-nums shrink-0 hidden sm:block">{shortDate(tx.day)}</span>
-                          <span className="text-sm font-medium tabular-nums shrink-0 w-24 text-right" style={{ color: tx.type === "income" ? lime : red }}>
+                          <span className="text-sm font-medium tabular-nums shrink-0 w-24 text-right" style={{ color: tx.type === "income" ? GREEN : RED }}>
                             {tx.type === "income" ? "+" : "-"}{won(tx.amt)}
                           </span>
                           <button onClick={() => deleteTransaction(tx.id)} style={{ color: t.subtle }} className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-opacity shrink-0" aria-label="Delete">
@@ -571,24 +601,65 @@ export default function App() {
             </div>
           </div>
 
-          {/* ---------------- right: input ---------------- */}
+          {/* ---------------- right ---------------- */}
           <div className="lg:col-span-1 space-y-4">
 
+            {/* week highlight */}
+            <div style={{ ...card, backgroundImage: `radial-gradient(120% 120% at 0% 0%, ${BLUE}14 0%, transparent 60%)` }} className="rounded-3xl p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-medium">Week Highlight</h2>
+                {editingHighlight ? (
+                  <button onClick={saveHighlight} style={{ backgroundImage: brandGrad, color: "#fff" }} className="rounded-full px-3 py-1 text-[11px] font-medium flex items-center gap-1 hover:opacity-90">
+                    <CheckIcon className="w-3.5 h-3.5" /> Save
+                  </button>
+                ) : (
+                  <button onClick={startEditHighlight} style={{ background: t.soft, color: t.subtle }} className="rounded-full px-3 py-1 text-[11px] font-medium flex items-center gap-1 hover:opacity-80">
+                    <PenIcon className="w-3.5 h-3.5" /> Edit
+                  </button>
+                )}
+              </div>
+
+              {editingHighlight ? (
+                <>
+                  <textarea
+                    value={highlightDraft}
+                    maxLength={HIGHLIGHT_MAX}
+                    onChange={(e) => setHighlightDraft(e.target.value)}
+                    onFocus={() => { typingRef.current = true; }}
+                    onBlur={() => { typingRef.current = false; }}
+                    rows={5}
+                    placeholder="What matters this week"
+                    style={{ ...input, fontSize: "11px", lineHeight: "17px" }}
+                    className="w-full rounded-xl px-3 py-2.5 outline-none resize-none focus:ring-2"
+                  />
+                  <div className="flex items-center justify-between mt-2">
+                    <button onClick={clearHighlight} style={{ color: t.subtle }} className="text-[11px] hover:opacity-70">Delete</button>
+                    <span style={{ color: t.subtle }} className="text-[10px] tabular-nums">{highlightDraft.length}/{HIGHLIGHT_MAX}</span>
+                  </div>
+                </>
+              ) : weekHighlight ? (
+                <p style={{ fontSize: "11px", lineHeight: "17px" }} className="whitespace-pre-wrap break-words">{weekHighlight}</p>
+              ) : (
+                <p style={{ color: t.subtle, fontSize: "11px", lineHeight: "17px" }}>Nothing pinned. Tap edit to write one.</p>
+              )}
+            </div>
+
+            {/* add entry */}
             <div style={card} className="rounded-3xl p-5">
               <h2 className="text-sm font-medium mb-4">Add entry</h2>
               <form onSubmit={addTransaction} className="space-y-2.5">
-                <input type="number" step="1" min="0" placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} style={input} className="w-full rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#C9F24D]" required />
+                <input type="number" step="1" min="0" placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} style={input} className="w-full rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2" required />
                 <div className="grid grid-cols-2 gap-2.5">
-                  <select value={txType} onChange={(e) => setTxType(e.target.value)} style={input} className="rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#C9F24D]">
+                  <select value={txType} onChange={(e) => setTxType(e.target.value)} style={input} className="rounded-xl px-3 py-2.5 text-sm outline-none">
                     <option value="expense">Expense</option>
                     <option value="income">Income</option>
                   </select>
-                  <select value={category} onChange={(e) => setCategory(e.target.value)} style={input} className="rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#C9F24D]">
-                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  <select value={category} onChange={(e) => setCategory(e.target.value)} style={input} className="rounded-xl px-3 py-2.5 text-sm outline-none">
+                    {CATEGORIES.map(c => <option key={c} value={c}>{CAT_LABELS[c]}</option>)}
                   </select>
                 </div>
-                <input type="text" placeholder="Note" value={note} onChange={(e) => setNote(e.target.value)} style={input} className="w-full rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#C9F24D]" />
-                <button type="submit" style={{ background: lime, color: limeInk }} className="w-full rounded-xl px-4 py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5">
+                <input type="text" placeholder="Note" value={note} onChange={(e) => setNote(e.target.value)} style={input} className="w-full rounded-xl px-3 py-2.5 text-sm outline-none" />
+                <button type="submit" style={{ backgroundImage: brandGrad, color: "#fff" }} className="w-full rounded-xl px-4 py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5">
                   <PlusIcon className="w-4 h-4" /> Add
                 </button>
               </form>
@@ -598,7 +669,7 @@ export default function App() {
             <div style={card} className="rounded-3xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-medium flex items-center gap-2"><BarbellIcon className="w-4 h-4" /> Workout</h2>
-                <button onClick={addExercise} style={{ background: lime, color: limeInk }} className="rounded-full p-1.5 hover:opacity-90" aria-label="Add exercise"><PlusIcon className="w-3.5 h-3.5" /></button>
+                <button onClick={addExercise} style={{ backgroundImage: brandGrad, color: "#fff" }} className="rounded-full p-1.5 hover:opacity-90" aria-label="Add exercise"><PlusIcon className="w-3.5 h-3.5" /></button>
               </div>
 
               <div className="flex flex-wrap gap-1.5 mb-4">
@@ -634,7 +705,7 @@ export default function App() {
                                 const i = TOOLS.findIndex(x => x.key === (ex.tool || "BB"));
                                 updateExercise(ex.id, "tool", TOOLS[(i + 1) % TOOLS.length].key);
                               }}
-                              style={{ background: `${lime}1F`, color: lime }}
+                              style={{ background: `${BLUE}1F`, color: BLUE }}
                               className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 hover:opacity-80"
                               title="Change tool"
                             >
@@ -644,9 +715,9 @@ export default function App() {
                             <button onClick={() => deleteExercise(ex.id)} style={{ color: t.subtle }} className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-opacity shrink-0" aria-label="Remove"><XIcon className="w-3.5 h-3.5" /></button>
                           </div>
                           <div className="flex items-center gap-2 mt-2 pl-10">
-                            <input type="number" min="0" placeholder="0" value={ex.weight || ""} onChange={(e) => updateExercise(ex.id, "weight", e.target.value)} style={{ background: t.card, border: `1px solid ${t.border}`, color: t.ink }} className="w-16 rounded-lg px-2 py-1 text-xs tabular-nums outline-none focus:ring-1 focus:ring-[#C9F24D]" />
+                            <input type="number" min="0" placeholder="0" value={ex.weight || ""} onChange={(e) => updateExercise(ex.id, "weight", e.target.value)} style={{ background: t.card, border: `1px solid ${t.border}`, color: t.ink }} className="w-16 rounded-lg px-2 py-1 text-xs tabular-nums outline-none" />
                             <span style={{ color: t.subtle }} className="text-[11px]">kg</span>
-                            <input type="number" min="0" value={ex.reps || ""} onChange={(e) => updateExercise(ex.id, "reps", e.target.value)} style={{ background: t.card, border: `1px solid ${t.border}`, color: t.ink }} className="w-14 rounded-lg px-2 py-1 text-xs tabular-nums outline-none focus:ring-1 focus:ring-[#C9F24D]" />
+                            <input type="number" min="0" value={ex.reps || ""} onChange={(e) => updateExercise(ex.id, "reps", e.target.value)} style={{ background: t.card, border: `1px solid ${t.border}`, color: t.ink }} className="w-14 rounded-lg px-2 py-1 text-xs tabular-nums outline-none" />
                             <span style={{ color: t.subtle }} className="text-[11px]">reps</span>
                           </div>
                         </div>
