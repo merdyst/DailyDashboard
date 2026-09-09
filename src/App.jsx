@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+\import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import axios from "axios";
 
 const BIN_ID = "6a4c695cf5f4af5e296a28a4";
@@ -248,27 +248,26 @@ export default function App() {
     [transactions]
   );
 
-  // ---- budget cycle ----
+  // ---- total savings: every income minus every expense, same as before ----
+  const savings = useMemo(
+    () => txs.reduce((s, t) => s + (t.type === "income" ? t.amt : -t.amt), 0),
+    [txs]
+  );
+
+  // ---- daily allowance: total savings spread over the days left until the 24th ----
   const budget = useMemo(() => {
     const inCycle = txs.filter(t => t.day >= cycle.start && t.day <= cycle.end);
-    const income = inCycle.filter(t => t.type === "income").reduce((s, t) => s + t.amt, 0);
-    const spent = inCycle.filter(t => t.type === "expense").reduce((s, t) => s + t.amt, 0);
+    const spentCycle = inCycle.filter(t => t.type === "expense").reduce((s, t) => s + t.amt, 0);
     const spentToday = inCycle.filter(t => t.type === "expense" && t.day === today).reduce((s, t) => s + t.amt, 0);
 
-    const remaining = income - spent;
     const daysLeft = Math.max(diffDays(today, cycle.end) + 1, 1);
-    const beforeToday = remaining + spentToday;
+    const beforeToday = savings + spentToday;          // today's spending added back
     const raw = beforeToday / daysLeft;
     const allowance = raw > 0 ? Math.floor(raw / ROUND_TO) * ROUND_TO : 0;
     const leftToday = allowance - spentToday;
 
-    return { income, spent, remaining, spentToday, daysLeft, allowance, leftToday, inCycle };
-  }, [txs, cycle, today]);
-
-  const allTime = useMemo(
-    () => txs.reduce((s, t) => s + (t.type === "income" ? t.amt : -t.amt), 0),
-    [txs]
-  );
+    return { spentCycle, spentToday, daysLeft, allowance, leftToday, inCycle };
+  }, [txs, cycle, today, savings]);
 
   // ---- streaks ----
   const streakDays = streakLastReset ? Math.max(diffDays(streakLastReset, today), 0) : 0;
@@ -295,8 +294,8 @@ export default function App() {
     const totals = {};
     CATEGORIES.forEach(c => { totals[c] = 0; });
     periodTx.filter(t => t.type === "expense").forEach(t => {
-      if (totals[t.category] !== undefined) totals[t.category] += t.amt;
-      else totals[t.category] = (totals[t.category] || 0) + t.amt;
+      const key = t.category && CATEGORIES.includes(t.category) ? t.category : "Uncategorized";
+      totals[key] = (totals[key] || 0) + t.amt;
     });
     return Object.entries(totals)
       .map(([label, value]) => ({ label, value, color: CAT_COLORS[label] || "#8A8A8A" }))
@@ -432,10 +431,10 @@ export default function App() {
         <section style={{ background: darkMode ? "#3F5A45" : green }} className="rounded-2xl p-5 sm:p-6 shadow-sm text-white mb-6">
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div>
-              <p className="text-xs opacity-75">Left this cycle</p>
-              <p style={{ fontFamily: F_DISPLAY }} className="text-4xl sm:text-5xl font-semibold tabular-nums mt-1">{won(budget.remaining)}</p>
+              <p className="text-xs opacity-75">Total savings</p>
+              <p style={{ fontFamily: F_DISPLAY }} className="text-4xl sm:text-5xl font-semibold tabular-nums mt-1">{won(savings)}</p>
               <p className="text-xs opacity-75 mt-2">
-                {formatShortDate(cycle.start)} – {formatShortDate(cycle.end)} · {budget.daysLeft} {budget.daysLeft === 1 ? "day" : "days"} left
+                Resets {formatShortDate(cycle.end)} · {budget.daysLeft} {budget.daysLeft === 1 ? "day" : "days"} left
               </p>
             </div>
             <div className="text-right">
@@ -447,15 +446,9 @@ export default function App() {
             </div>
           </div>
 
-          <div className="mt-5">
-            <div className="h-2 rounded-full overflow-hidden bg-white/20">
-              <div className="h-full bg-white/85 rounded-full transition-all" style={{ width: `${budget.income > 0 ? Math.min((budget.spent / budget.income) * 100, 100) : 0}%` }} />
-            </div>
-            <div className="flex justify-between text-xs opacity-75 mt-2">
-              <span>Spent {won(budget.spent)}</span>
-              <span>Budget {won(budget.income)}</span>
-            </div>
-          </div>
+          <p className="text-xs opacity-75 mt-5">
+            {won(savings)} ÷ {budget.daysLeft} days · spent {won(budget.spentCycle)} since {formatShortDate(cycle.start)}
+          </p>
         </section>
 
         {/* streaks */}
@@ -491,7 +484,7 @@ export default function App() {
         <section style={{ background: cardBg, border: `1px solid ${borderCol}` }} className="rounded-2xl shadow-sm p-5 sm:p-6 mb-6">
           <div className="flex items-baseline justify-between mb-4">
             <h2 style={{ fontFamily: F_DISPLAY }} className="text-lg font-semibold">Money tracker</h2>
-            <span style={{ fontFamily: F_MONO, color: subtle }} className="text-xs">All time {won(allTime)}</span>
+            <span style={{ fontFamily: F_MONO, color: subtle }} className="text-xs">Spent this cycle {won(budget.spentCycle)}</span>
           </div>
 
           <form onSubmit={addTransaction} className="flex flex-wrap gap-3 mb-6">
