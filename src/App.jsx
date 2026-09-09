@@ -7,26 +7,28 @@ const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 const HEADERS = { "X-Master-Key": MASTER_KEY, "Content-Type": "application/json" };
 
 // ---------- config ----------
-const CYCLE_START_DAY = 25;   // budget month runs 25th -> 24th
-const ROUND_TO = 100;         // round daily allowance down to nearest 100 won
+const CYCLE_START_DAY = 25;
+const ROUND_TO = 100;
 const PAGE_SIZE = 10;
+const FONT = "'Poppins', system-ui, sans-serif";
 
 const TOOLS = [
+  { key: "BB", label: "Barbell" },
   { key: "DB", label: "Dumbbell" },
   { key: "KB", label: "Kettlebell" },
-  { key: "BB", label: "Barbell" },
   { key: "BW", label: "Bodyweight" },
   { key: "ERG", label: "Erg" },
 ];
 
 const CATEGORIES = ["Food", "Grocery", "Entertainment", "Clothes", "Acc"];
 const CAT_COLORS = {
-  Food: "#5B7F62",
-  Grocery: "#7C5A96",
-  Entertainment: "#C1543C",
-  Clothes: "#4A5FA0",
-  Acc: "#C79A3C",
+  Food: "#C9F24D",
+  Grocery: "#4FD1A5",
+  Entertainment: "#A78BFA",
+  Clothes: "#60A5FA",
+  Acc: "#F5B841",
 };
+const OTHER = "Other";
 
 // ---------- date helpers ----------
 const pad = (n) => String(n).padStart(2, "0");
@@ -34,8 +36,8 @@ const todayStr = () => {
   const d = new Date();
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
-const toDateStr = (isoTimestamp) => {
-  const d = new Date(isoTimestamp);
+const toDateStr = (iso) => {
+  const d = new Date(iso);
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 const addDaysStr = (dateStr, delta) => {
@@ -44,32 +46,28 @@ const addDaysStr = (dateStr, delta) => {
   dt.setDate(dt.getDate() + delta);
   return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
 };
-const diffDays = (fromStr, toStr) => {
-  const [fy, fm, fd] = fromStr.split("-").map(Number);
-  const [ty, tm, td] = toStr.split("-").map(Number);
+const diffDays = (a, b) => {
+  const [fy, fm, fd] = a.split("-").map(Number);
+  const [ty, tm, td] = b.split("-").map(Number);
   return Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(fy, fm - 1, fd)) / 86400000);
 };
-const formatShortDate = (dateStr) => {
+const shortDate = (dateStr) => {
   const [y, m, d] = dateStr.split("-").map(Number);
   return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 const won = (n) => `₩${Math.round(n).toLocaleString()}`;
+const wonShort = (n) => (Math.abs(n) >= 10000 ? `₩${Math.round(n / 1000)}k` : `₩${Math.round(n).toLocaleString()}`);
 
-// budget cycle that contains a given date
 const cycleFor = (dateStr) => {
   const [y, m, d] = dateStr.split("-").map(Number);
   let sy = y, sm = m;
-  if (d < CYCLE_START_DAY) {
-    sm = m - 1;
-    if (sm === 0) { sm = 12; sy = y - 1; }
-  }
+  if (d < CYCLE_START_DAY) { sm = m - 1; if (sm === 0) { sm = 12; sy = y - 1; } }
   const start = `${sy}-${pad(sm)}-${pad(CYCLE_START_DAY)}`;
   let ey = sy, em = sm + 1;
   if (em === 13) { em = 1; ey = sy + 1; }
   return { start, end: `${ey}-${pad(em)}-${pad(CYCLE_START_DAY - 1)}` };
 };
 
-// ---------- streak helpers ----------
 function longestRun(dates) {
   const sorted = [...new Set(dates)].sort();
   let best = 0, run = 0, prev = null;
@@ -80,10 +78,8 @@ function longestRun(dates) {
   }
   return best;
 }
-
-function calcReadingStreak(dates) {
+function calcReadingStreak(dates, today) {
   const set = new Set(dates);
-  const today = todayStr();
   let cursor = set.has(today) ? today : addDaysStr(today, -1);
   if (!set.has(cursor)) return 0;
   let count = 0;
@@ -91,62 +87,57 @@ function calcReadingStreak(dates) {
   return count;
 }
 
-const F_DISPLAY = "'Fraunces', serif";
-const F_MONO = "'JetBrains Mono', monospace";
+// ---------- icons ----------
+const s = (p) => ({ viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.7, strokeLinecap: "round", strokeLinejoin: "round", ...p });
+const SunIcon = (p) => (<svg {...s(p)}><circle cx="12" cy="12" r="4.2" /><path d="M12 2.5v2.4M12 19.1v2.4M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7" /></svg>);
+const MoonIcon = (p) => (<svg {...s(p)}><path d="M20 14.2A8.2 8.2 0 1 1 9.8 4a6.5 6.5 0 0 0 10.2 10.2Z" /></svg>);
+const TrashIcon = (p) => (<svg {...s(p)}><path d="M4 7h16M9 7V4.8A.8.8 0 0 1 9.8 4h4.4a.8.8 0 0 1 .8.8V7M18 7l-.7 12.4a1.6 1.6 0 0 1-1.6 1.6H8.3a1.6 1.6 0 0 1-1.6-1.6L6 7" /></svg>);
+const XIcon = (p) => (<svg {...s(p)}><path d="M6 6l12 12M18 6L6 18" /></svg>);
+const PlusIcon = (p) => (<svg {...s(p)}><path d="M12 5v14M5 12h14" /></svg>);
+const ArrowIcon = (p) => (<svg {...s(p)}><path d="M15 6l-6 6 6 6" /></svg>);
+const FlameIcon = (p) => (<svg {...s(p)}><path d="M12 3c.6 3.2 3 4.2 3.9 6.4a5.9 5.9 0 1 1-9.6 1.7C7.6 8.4 10.4 8 12 3Z" /></svg>);
+const BookIcon = (p) => (<svg {...s(p)}><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v15H6.5A2.5 2.5 0 0 0 4 20.5Z" /><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H19v3H6.5" /></svg>);
 
-// ---------- ui icons ----------
-const svg = (props) => ({ viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", ...props });
-const SunIcon = (p) => (<svg {...svg(p)}><circle cx="12" cy="12" r="4.2" /><path d="M12 2.5v2.4M12 19.1v2.4M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7" /></svg>);
-const MoonIcon = (p) => (<svg {...svg(p)}><path d="M20 14.2A8.2 8.2 0 1 1 9.8 4a6.5 6.5 0 0 0 10.2 10.2Z" /></svg>);
-const ChevronIcon = (p) => (<svg {...svg(p)}><path d="M6 9l6 6 6-6" /></svg>);
-const TrashIcon = (p) => (<svg {...svg(p)}><path d="M4 7h16M9 7V4.8A.8.8 0 0 1 9.8 4h4.4a.8.8 0 0 1 .8.8V7M18 7l-.7 12.4a1.6 1.6 0 0 1-1.6 1.6H8.3a1.6 1.6 0 0 1-1.6-1.6L6 7" /></svg>);
-const XIcon = (p) => (<svg {...svg(p)}><path d="M6 6l12 12M18 6L6 18" /></svg>);
-const PlusIcon = (p) => (<svg {...svg(p)}><path d="M12 5v14M5 12h14" /></svg>);
-const ArrowIcon = (p) => (<svg {...svg(p)}><path d="M15 6l-6 6 6 6" /></svg>);
-
-// ---------- workout tool icons ----------
-const DumbbellIcon = (p) => (<svg {...svg(p)}><path d="M4 9v6M7 7v10M10 11h4M17 7v10M20 9v6" /></svg>);
-const KettlebellIcon = (p) => (<svg {...svg(p)}><path d="M9 7a3 3 0 0 1 6 0" /><path d="M9.2 7.4C7 8.6 5.5 11 5.5 13.6c0 2.3 1 4 2.2 5.4h8.6c1.2-1.4 2.2-3.1 2.2-5.4 0-2.6-1.5-5-3.7-6.2" /></svg>);
-const BarbellIcon = (p) => (<svg {...svg(p)}><path d="M3 10v4M6 7.5v9M8.5 12h7M18 7.5v9M21 10v4" /></svg>);
-const BodyweightIcon = (p) => (<svg {...svg(p)}><circle cx="12" cy="5" r="2" /><path d="M12 7.5v6M12 13.5l-3 6M12 13.5l3 6M7 10h10" /></svg>);
-const ErgIcon = (p) => (<svg {...svg(p)}><circle cx="8" cy="8" r="2" /><path d="M10 10.5l3 2 3-1M13 12.5l1 4M14 16.5l-4 2.5M3 14h18M6 14l-2 5M18 14l2 5" /></svg>);
-
+const DumbbellIcon = (p) => (<svg {...s(p)}><path d="M4 9v6M7 7v10M10 11h4M17 7v10M20 9v6" /></svg>);
+const KettlebellIcon = (p) => (<svg {...s(p)}><path d="M9 7a3 3 0 0 1 6 0" /><path d="M9.2 7.4C7 8.6 5.5 11 5.5 13.6c0 2.3 1 4 2.2 5.4h8.6c1.2-1.4 2.2-3.1 2.2-5.4 0-2.6-1.5-5-3.7-6.2" /></svg>);
+const BarbellIcon = (p) => (<svg {...s(p)}><path d="M3 10v4M6 7.5v9M8.5 12h7M18 7.5v9M21 10v4" /></svg>);
+const BodyweightIcon = (p) => (<svg {...s(p)}><circle cx="12" cy="5" r="2" /><path d="M12 7.5v6M12 13.5l-3 6M12 13.5l3 6M7 10h10" /></svg>);
+const ErgIcon = (p) => (<svg {...s(p)}><circle cx="8" cy="8" r="2" /><path d="M10 10.5l3 2 3-1M13 12.5l1 4M14 16.5l-4 2.5M3 14h18M6 14l-2 5M18 14l2 5" /></svg>);
 const TOOL_ICONS = { DB: DumbbellIcon, KB: KettlebellIcon, BB: BarbellIcon, BW: BodyweightIcon, ERG: ErgIcon };
 
-// ---------- donut chart ----------
-function Donut({ data, total, size = 168, thickness = 22, trackColor, centerLabel, centerValue, ink }) {
+// ---------- donut ----------
+function Donut({ data, total, size = 150, thickness = 20, track, ink, centerValue, centerLabel }) {
   const r = (size - thickness) / 2;
   const c = 2 * Math.PI * r;
   let offset = 0;
   return (
-    <div className="relative shrink-0" style={{ width: size, height: size }}>
+    <div className="relative mx-auto shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)" }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={trackColor} strokeWidth={thickness} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={track} strokeWidth={thickness} />
         {total > 0 && data.map((d) => {
           const len = (d.value / total) * c;
-          const dash = <circle key={d.label} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={d.color} strokeWidth={thickness} strokeDasharray={`${len} ${c - len}`} strokeDashoffset={-offset} />;
+          const arc = <circle key={d.label} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={d.color} strokeWidth={thickness} strokeDasharray={`${len} ${c - len}`} strokeDashoffset={-offset} strokeLinecap="butt" />;
           offset += len;
-          return dash;
+          return arc;
         })}
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <span style={{ fontFamily: F_DISPLAY, color: ink }} className="text-xl font-semibold tabular-nums">{centerValue}</span>
-        <span className="text-[11px] opacity-60">{centerLabel}</span>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span style={{ color: ink }} className="text-lg font-semibold tabular-nums">{centerValue}</span>
+        <span className="text-[11px] opacity-50">{centerLabel}</span>
       </div>
     </div>
   );
 }
 
-// ---------- pagination ----------
 function Pager({ page, pages, onChange, subtle }) {
   if (pages <= 1) return null;
   return (
     <div className="flex items-center justify-center gap-3 pt-4">
-      <button onClick={() => onChange(page - 1)} disabled={page === 1} className={`p-1.5 rounded-lg ${page === 1 ? "opacity-30" : "hover:opacity-70"}`} aria-label="Previous page">
+      <button onClick={() => onChange(page - 1)} disabled={page === 1} className={`p-1.5 rounded-lg ${page === 1 ? "opacity-25" : "hover:opacity-70"}`} aria-label="Previous">
         <ArrowIcon className="w-4 h-4" />
       </button>
-      <span style={{ fontFamily: F_MONO, color: subtle }} className="text-xs">{page} / {pages}</span>
-      <button onClick={() => onChange(page + 1)} disabled={page === pages} className={`p-1.5 rounded-lg rotate-180 ${page === pages ? "opacity-30" : "hover:opacity-70"}`} aria-label="Next page">
+      <span style={{ color: subtle }} className="text-xs tabular-nums">{page} / {pages}</span>
+      <button onClick={() => onChange(page + 1)} disabled={page === pages} className={`p-1.5 rounded-lg rotate-180 ${page === pages ? "opacity-25" : "hover:opacity-70"}`} aria-label="Next">
         <ArrowIcon className="w-4 h-4" />
       </button>
     </div>
@@ -154,17 +145,15 @@ function Pager({ page, pages, onChange, subtle }) {
 }
 
 export default function App() {
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
   const [transactions, setTransactions] = useState([]);
   const [streakLastReset, setStreakLastReset] = useState(todayStr());
   const [streakResets, setStreakResets] = useState([]);
   const [readingDates, setReadingDates] = useState([]);
   const [workoutPlan, setWorkoutPlan] = useState([]);
-  const [workoutOpen, setWorkoutOpen] = useState(false);
   const [filter, setFilter] = useState("ALL");
   const [sortKey, setSortKey] = useState("name");
   const [sortDir, setSortDir] = useState("asc");
-  const [historyOpen, setHistoryOpen] = useState(true);
   const [loading, setLoading] = useState(true);
   const [synced, setSynced] = useState(false);
   const isFirstLoad = useRef(true);
@@ -177,16 +166,36 @@ export default function App() {
   const [txType, setTxType] = useState("expense");
   const [category, setCategory] = useState("Food");
   const [note, setNote] = useState("");
-  const [spendPeriod, setSpendPeriod] = useState("cycle"); // cycle | last | all
+  const [spendPeriod, setSpendPeriod] = useState("cycle");
   const [txPage, setTxPage] = useState(1);
   const [wkPage, setWkPage] = useState(1);
+  const [today, setToday] = useState(todayStr());
 
-  // ---- load ----
+  // Poppins
+  useEffect(() => {
+    const id = "poppins-font";
+    if (document.getElementById(id)) return;
+    const link = document.createElement("link");
+    link.id = id;
+    link.rel = "stylesheet";
+    link.href = "https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap";
+    document.head.appendChild(link);
+  }, []);
+
+  // date rolls over on its own
+  useEffect(() => {
+    const i = setInterval(() => {
+      const d = todayStr();
+      setToday((prev) => (prev === d ? prev : d));
+    }, 30000);
+    return () => clearInterval(i);
+  }, []);
+
   useEffect(() => {
     axios.get(BIN_URL, { headers: HEADERS })
       .then(res => {
         const data = res.data.record;
-        setDarkMode(data.darkMode ?? false);
+        setDarkMode(data.darkMode ?? true);
         setTransactions(data.transactions ?? []);
         setStreakLastReset(data.streakLastReset ?? todayStr());
         setStreakResets(data.streakResets ?? (data.streakLastReset ? [data.streakLastReset] : []));
@@ -199,7 +208,6 @@ export default function App() {
       .finally(() => setLoading(false));
   }, []);
 
-  // ---- save ----
   const saveToCloud = useCallback(() => {
     if (!synced || isFirstLoad.current) { isFirstLoad.current = false; return; }
     if (typingRef.current) return;
@@ -215,7 +223,6 @@ export default function App() {
     return () => clearTimeout(t);
   }, [saveToCloud]);
 
-  // ---- poll ----
   useEffect(() => {
     const interval = setInterval(() => {
       if (typingRef.current || remoteUpdateRef.current) return;
@@ -226,7 +233,7 @@ export default function App() {
           if (newData === lastSavedRef.current) return;
           remoteUpdateRef.current = true;
           lastSavedRef.current = newData;
-          setDarkMode(data.darkMode ?? false);
+          setDarkMode(data.darkMode ?? true);
           setTransactions(data.transactions ?? []);
           setStreakLastReset(data.streakLastReset ?? todayStr());
           setStreakResets(data.streakResets ?? (data.streakLastReset ? [data.streakLastReset] : []));
@@ -239,37 +246,27 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  const today = todayStr();
   const cycle = useMemo(() => cycleFor(today), [today]);
-
-  // normalise once: every transaction gets a plain YYYY-MM-DD day
   const txs = useMemo(
     () => transactions.map(t => ({ ...t, day: toDateStr(t.date), amt: Number(t.amount) || 0 })),
     [transactions]
   );
 
-  // ---- total savings: every income minus every expense, same as before ----
   const savings = useMemo(
-    () => txs.reduce((s, t) => s + (t.type === "income" ? t.amt : -t.amt), 0),
+    () => txs.reduce((sum, t) => sum + (t.type === "income" ? t.amt : -t.amt), 0),
     [txs]
   );
 
-  // ---- daily allowance: total savings spread over the days left until the 24th ----
   const budget = useMemo(() => {
     const inCycle = txs.filter(t => t.day >= cycle.start && t.day <= cycle.end);
-    const spentCycle = inCycle.filter(t => t.type === "expense").reduce((s, t) => s + t.amt, 0);
-    const spentToday = inCycle.filter(t => t.type === "expense" && t.day === today).reduce((s, t) => s + t.amt, 0);
-
+    const spentCycle = inCycle.filter(t => t.type === "expense").reduce((a, t) => a + t.amt, 0);
+    const spentToday = inCycle.filter(t => t.type === "expense" && t.day === today).reduce((a, t) => a + t.amt, 0);
     const daysLeft = Math.max(diffDays(today, cycle.end) + 1, 1);
-    const beforeToday = savings + spentToday;          // today's spending added back
-    const raw = beforeToday / daysLeft;
+    const raw = (savings + spentToday) / daysLeft;
     const allowance = raw > 0 ? Math.floor(raw / ROUND_TO) * ROUND_TO : 0;
-    const leftToday = allowance - spentToday;
-
-    return { spentCycle, spentToday, daysLeft, allowance, leftToday, inCycle };
+    return { spentCycle, spentToday, daysLeft, allowance, leftToday: allowance - spentToday, inCycle };
   }, [txs, cycle, today, savings]);
 
-  // ---- streaks ----
   const streakDays = streakLastReset ? Math.max(diffDays(streakLastReset, today), 0) : 0;
   const streakResetDisabled = streakLastReset === today;
   const streakLongest = useMemo(() => {
@@ -279,32 +276,29 @@ export default function App() {
     return best;
   }, [streakResets, streakLastReset, streakDays]);
 
-  const readingStreak = useMemo(() => calcReadingStreak(readingDates), [readingDates]);
+  const readingStreak = useMemo(() => calcReadingStreak(readingDates, today), [readingDates, today]);
   const readingLongest = useMemo(() => Math.max(longestRun(readingDates), readingStreak), [readingDates, readingStreak]);
   const readingDoneToday = readingDates.includes(today);
 
-  // ---- spending breakdown ----
   const periodTx = useMemo(() => {
     if (spendPeriod === "all") return txs;
     const c = spendPeriod === "cycle" ? cycle : cycleFor(addDaysStr(cycle.start, -1));
     return txs.filter(t => t.day >= c.start && t.day <= c.end);
   }, [txs, spendPeriod, cycle]);
 
+  // uncategorised entries stay out of the chart
   const spendData = useMemo(() => {
     const totals = {};
-    CATEGORIES.forEach(c => { totals[c] = 0; });
     periodTx.filter(t => t.type === "expense").forEach(t => {
-      const key = t.category && CATEGORIES.includes(t.category) ? t.category : "Uncategorized";
-      totals[key] = (totals[key] || 0) + t.amt;
+      if (t.category && CATEGORIES.includes(t.category)) totals[t.category] = (totals[t.category] || 0) + t.amt;
     });
     return Object.entries(totals)
-      .map(([label, value]) => ({ label, value, color: CAT_COLORS[label] || "#8A8A8A" }))
+      .map(([label, value]) => ({ label, value, color: CAT_COLORS[label] }))
+      .filter(d => d.value > 0)
       .sort((a, b) => b.value - a.value);
   }, [periodTx]);
+  const spendTotal = spendData.reduce((a, d) => a + d.value, 0);
 
-  const spendTotal = spendData.reduce((s, d) => s + d.value, 0);
-
-  // daily spend bars across the current cycle
   const dailyBars = useMemo(() => {
     const days = diffDays(cycle.start, cycle.end) + 1;
     const map = {};
@@ -314,8 +308,7 @@ export default function App() {
       return { day, value: map[day] || 0, isToday: day === today, future: day > today };
     });
   }, [budget.inCycle, cycle, today]);
-
-  const maxBar = Math.max(...dailyBars.map(b => b.value), budget.allowance, 1);
+  const maxBar = Math.max(...dailyBars.map(b => b.value), 1);
 
   // ---- handlers ----
   const addTransaction = (e) => {
@@ -359,16 +352,15 @@ export default function App() {
     setWorkoutPlan(prev => prev.map(ex => (ex.id === id ? { ...ex, [field]: value } : ex)));
   };
   const deleteExercise = (id) => setWorkoutPlan(prev => prev.filter(ex => ex.id !== id));
-
   const toggleSort = (key) => {
     if (sortKey === key) setSortDir(d => (d === "asc" ? "desc" : "asc"));
     else { setSortKey(key); setSortDir("asc"); }
   };
 
-  // ---- paged lists ----
   const sortedTx = useMemo(() => [...txs].sort((a, b) => (a.day < b.day ? 1 : a.day > b.day ? -1 : 0)), [txs]);
   const txPages = Math.max(Math.ceil(sortedTx.length / PAGE_SIZE), 1);
-  const txSlice = sortedTx.slice((Math.min(txPage, txPages) - 1) * PAGE_SIZE, Math.min(txPage, txPages) * PAGE_SIZE);
+  const txCur = Math.min(txPage, txPages);
+  const txSlice = sortedTx.slice((txCur - 1) * PAGE_SIZE, txCur * PAGE_SIZE);
 
   const sortedWorkouts = useMemo(() => {
     const list = workoutPlan.filter(ex => filter === "ALL" || ex.tool === filter);
@@ -381,280 +373,294 @@ export default function App() {
     });
   }, [workoutPlan, filter, sortKey, sortDir]);
   const wkPages = Math.max(Math.ceil(sortedWorkouts.length / PAGE_SIZE), 1);
-  const wkSlice = sortedWorkouts.slice((Math.min(wkPage, wkPages) - 1) * PAGE_SIZE, Math.min(wkPage, wkPages) * PAGE_SIZE);
-
+  const wkCur = Math.min(wkPage, wkPages);
+  const wkSlice = sortedWorkouts.slice((wkCur - 1) * PAGE_SIZE, wkCur * PAGE_SIZE);
   useEffect(() => { setWkPage(1); }, [filter]);
 
   // ---- theme ----
-  const bg = darkMode ? "#17181B" : "#FAF6EE";
-  const ink = darkMode ? "#F0EBE1" : "#2B2A28";
-  const cardBg = darkMode ? "#211F1C" : "#FFFFFF";
-  const borderCol = darkMode ? "rgba(255,255,255,0.08)" : "rgba(43,42,40,0.08)";
-  const subtle = darkMode ? "rgba(240,235,225,0.55)" : "rgba(43,42,40,0.55)";
-  const inputBg = darkMode ? "#17181B" : "#FAF6EE";
-  const track = darkMode ? "rgba(255,255,255,0.08)" : "rgba(43,42,40,0.07)";
-  const green = "#5B7F62";
-  const red = "#C1543C";
+  const t = darkMode
+    ? { bg: "#0B0C0A", card: "#16181A", soft: "#1E2124", border: "rgba(255,255,255,0.07)", ink: "#F2F4F0", subtle: "rgba(242,244,240,0.5)", track: "rgba(255,255,255,0.07)" }
+    : { bg: "#F2F3EF", card: "#FFFFFF", soft: "#F5F6F2", border: "rgba(20,23,15,0.08)", ink: "#14170F", subtle: "rgba(20,23,15,0.5)", track: "rgba(20,23,15,0.07)" };
+  const lime = "#C9F24D";
+  const limeInk = "#14170F";
+  const red = "#F0705E";
 
-  const pill = (active) => ({
-    background: active ? "#7C5A96" : inputBg,
-    color: active ? "#fff" : ink,
-    border: `1px solid ${borderCol}`,
-  });
-  const inputStyle = { background: inputBg, border: `1px solid ${borderCol}`, color: ink };
+  const card = { background: t.card, border: `1px solid ${t.border}` };
+  const input = { background: t.soft, border: `1px solid ${t.border}`, color: t.ink };
+  const chip = (on) => ({ background: on ? lime : t.soft, color: on ? limeInk : t.subtle, border: `1px solid ${on ? lime : t.border}` });
 
   if (loading) {
     return (
-      <div style={{ background: bg, color: ink, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <p style={{ fontFamily: F_DISPLAY }} className="text-xl">Loading dashboard...</p>
+      <div style={{ background: t.bg, color: t.ink, fontFamily: FONT, minHeight: "100vh" }} className="flex items-center justify-center">
+        <p className="text-sm opacity-60">Loading</p>
       </div>
     );
   }
 
   return (
-    <div style={{ background: bg, color: ink, minHeight: "100vh" }} className="transition-colors duration-300">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-        {/* header - visual pass later */}
-        <div className="flex items-start justify-between mb-8">
+    <div style={{ background: t.bg, color: t.ink, fontFamily: FONT, minHeight: "100vh" }}>
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6">
+
+        <header className="flex items-center justify-between mb-5">
           <div>
-            <h1 style={{ fontFamily: F_DISPLAY }} className="text-2xl sm:text-3xl font-semibold tracking-tight">Merdy Dashboard</h1>
-            <p style={{ fontFamily: F_MONO, color: subtle }} className="text-xs mt-1 tracking-wide">
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Hello, Merdy</h1>
+            <p style={{ color: t.subtle }} className="text-xs mt-0.5">
               {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
             </p>
           </div>
-          <button onClick={() => setDarkMode(d => !d)} style={{ background: cardBg, border: `1px solid ${borderCol}`, color: ink }} className="rounded-full p-2.5 shadow-sm hover:opacity-80 transition-opacity shrink-0" aria-label="Toggle dark mode">
-            {darkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
+          <button onClick={() => setDarkMode(d => !d)} style={card} className="rounded-full p-2.5 hover:opacity-80 transition-opacity" aria-label="Toggle theme">
+            {darkMode ? <SunIcon className="w-4 h-4" /> : <MoonIcon className="w-4 h-4" />}
           </button>
-        </div>
+        </header>
 
-        {/* budget hero */}
-        <section style={{ background: darkMode ? "#3F5A45" : green }} className="rounded-2xl p-5 sm:p-6 shadow-sm text-white mb-6">
-          <div className="flex flex-wrap items-end justify-between gap-6">
-            <div>
-              <p className="text-xs opacity-75">Total savings</p>
-              <p style={{ fontFamily: F_DISPLAY }} className="text-4xl sm:text-5xl font-semibold tabular-nums mt-1">{won(savings)}</p>
-              <p className="text-xs opacity-75 mt-2">
-                Resets {formatShortDate(cycle.end)} · {budget.daysLeft} {budget.daysLeft === 1 ? "day" : "days"} left
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs opacity-75">You can spend today</p>
-              <p style={{ fontFamily: F_DISPLAY }} className="text-3xl sm:text-4xl font-semibold tabular-nums mt-1">{won(budget.allowance)}</p>
-              <p className="text-xs opacity-75 mt-2">
-                spent {won(budget.spentToday)} · {budget.leftToday >= 0 ? `${won(budget.leftToday)} left` : `${won(-budget.leftToday)} over`}
-              </p>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
 
-          <p className="text-xs opacity-75 mt-5">
-            {won(savings)} ÷ {budget.daysLeft} days · spent {won(budget.spentCycle)} since {formatShortDate(cycle.start)}
-          </p>
-        </section>
+          {/* ---------------- left: visualization ---------------- */}
+          <div className="lg:col-span-3 space-y-4">
 
-        {/* streaks */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-          <div style={{ background: cardBg, border: `1px solid ${borderCol}` }} className="rounded-2xl p-5 shadow-sm flex items-center justify-between gap-4">
-            <div>
-              <div className="flex items-baseline gap-1.5 mb-1">
-                <span style={{ fontFamily: F_DISPLAY, color: darkMode ? "#A1B5D8" : "#4A5FA0" }} className="text-3xl sm:text-4xl font-semibold tabular-nums">{streakDays}</span>
-                <span className="text-sm opacity-80">{streakDays === 1 ? "day" : "days"}</span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* balance */}
+              <div style={card} className="sm:col-span-2 rounded-3xl p-6">
+                <p style={{ color: t.subtle }} className="text-xs">Total savings</p>
+                <p className="text-4xl sm:text-5xl font-semibold tabular-nums mt-2 tracking-tight">{won(savings)}</p>
+
+                <div className="grid grid-cols-3 gap-2 mt-6">
+                  <div style={{ background: lime, color: limeInk }} className="rounded-2xl px-3 py-3">
+                    <p className="text-[11px] opacity-70">Today</p>
+                    <p className="text-base font-semibold tabular-nums mt-0.5">{won(budget.allowance)}</p>
+                  </div>
+                  <div style={{ background: t.soft }} className="rounded-2xl px-3 py-3">
+                    <p style={{ color: t.subtle }} className="text-[11px]">Spent</p>
+                    <p className="text-base font-semibold tabular-nums mt-0.5">{won(budget.spentToday)}</p>
+                  </div>
+                  <div style={{ background: t.soft }} className="rounded-2xl px-3 py-3">
+                    <p style={{ color: t.subtle }} className="text-[11px]">Left</p>
+                    <p className="text-base font-semibold tabular-nums mt-0.5" style={{ color: budget.leftToday < 0 ? red : t.ink }}>{won(budget.leftToday)}</p>
+                  </div>
+                </div>
               </div>
-              <p className="text-xs opacity-80">Streak</p>
-              <p style={{ color: subtle }} className="text-xs mt-1">Longest {streakLongest} {streakLongest === 1 ? "day" : "days"}</p>
-            </div>
-            <button onClick={resetStreak} disabled={streakResetDisabled} className={`px-4 py-2 rounded-full text-sm font-medium text-white shrink-0 transition-opacity ${streakResetDisabled ? "opacity-40 cursor-not-allowed" : "hover:opacity-90"}`} style={{ background: red }}>Reset</button>
-          </div>
 
-          <div style={{ background: cardBg, border: `1px solid ${borderCol}` }} className="rounded-2xl p-5 shadow-sm flex items-center justify-between gap-4">
-            <div>
-              <div className="flex items-baseline gap-1.5 mb-1">
-                <span style={{ fontFamily: F_DISPLAY, color: darkMode ? "#C5B4D6" : "#7C5A96" }} className="text-3xl sm:text-4xl font-semibold tabular-nums">{readingStreak}</span>
-                <span className="text-sm opacity-80">{readingStreak === 1 ? "day" : "days"}</span>
-              </div>
-              <p className="text-xs opacity-80">Reading streak</p>
-              <p style={{ color: subtle }} className="text-xs mt-1">Longest {readingLongest} {readingLongest === 1 ? "day" : "days"}</p>
-            </div>
-            <button onClick={markReadToday} disabled={readingDoneToday} className={`px-4 py-2 rounded-full text-sm font-medium shrink-0 transition-opacity ${readingDoneToday ? "opacity-70 cursor-not-allowed" : "hover:opacity-90"}`} style={{ background: readingDoneToday ? (darkMode ? "#2E4A32" : "#DCE7DD") : green, color: readingDoneToday ? green : "#fff" }}>
-              {readingDoneToday ? "Read today" : "Read now"}
-            </button>
-          </div>
-        </div>
+              {/* streaks */}
+              <div style={card} className="rounded-3xl p-5 flex flex-col justify-between gap-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span style={{ background: t.soft }} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"><FlameIcon className="w-4 h-4" /></span>
+                    <div className="min-w-0">
+                      <p className="text-lg font-semibold tabular-nums leading-none">{streakDays}<span style={{ color: t.subtle }} className="text-xs font-normal ml-1">d</span></p>
+                      <p style={{ color: t.subtle }} className="text-[11px] mt-1 truncate">Streak · best {streakLongest}</p>
+                    </div>
+                  </div>
+                  <button onClick={resetStreak} disabled={streakResetDisabled} style={{ background: t.soft, color: streakResetDisabled ? t.subtle : red }} className={`rounded-full px-3 py-1.5 text-xs font-medium shrink-0 ${streakResetDisabled ? "opacity-50" : "hover:opacity-80"}`}>Reset</button>
+                </div>
 
-        {/* money tracker */}
-        <section style={{ background: cardBg, border: `1px solid ${borderCol}` }} className="rounded-2xl shadow-sm p-5 sm:p-6 mb-6">
-          <div className="flex items-baseline justify-between mb-4">
-            <h2 style={{ fontFamily: F_DISPLAY }} className="text-lg font-semibold">Money tracker</h2>
-            <span style={{ fontFamily: F_MONO, color: subtle }} className="text-xs">Spent this cycle {won(budget.spentCycle)}</span>
-          </div>
+                <div style={{ borderTop: `1px solid ${t.border}` }} />
 
-          <form onSubmit={addTransaction} className="flex flex-wrap gap-3 mb-6">
-            <input type="number" step="1" min="0" placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} style={inputStyle} className="rounded-xl px-3 py-2 text-sm w-28 outline-none focus:ring-2 focus:ring-[#5B7F62]" required />
-            <select value={txType} onChange={(e) => setTxType(e.target.value)} style={inputStyle} className="rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#5B7F62]">
-              <option value="expense">Expense</option>
-              <option value="income">Income</option>
-            </select>
-            <select value={category} onChange={(e) => setCategory(e.target.value)} style={inputStyle} className="rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#5B7F62]">
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <input type="text" placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} style={inputStyle} className="rounded-xl px-3 py-2 text-sm flex-1 min-w-[140px] outline-none focus:ring-2 focus:ring-[#5B7F62]" />
-            <button type="submit" className="rounded-xl px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity flex items-center gap-1" style={{ background: green }}><PlusIcon className="w-4 h-4" /> Add</button>
-          </form>
-
-          {/* breakdown */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-              <h3 className="text-sm font-semibold">Spending breakdown</h3>
-              <div className="flex gap-2">
-                <button onClick={() => setSpendPeriod("cycle")} style={pill(spendPeriod === "cycle")} className="rounded-full px-3 py-1 text-xs font-medium">This cycle</button>
-                <button onClick={() => setSpendPeriod("last")} style={pill(spendPeriod === "last")} className="rounded-full px-3 py-1 text-xs font-medium">Last cycle</button>
-                <button onClick={() => setSpendPeriod("all")} style={pill(spendPeriod === "all")} className="rounded-full px-3 py-1 text-xs font-medium">All time</button>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span style={{ background: t.soft }} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"><BookIcon className="w-4 h-4" /></span>
+                    <div className="min-w-0">
+                      <p className="text-lg font-semibold tabular-nums leading-none">{readingStreak}<span style={{ color: t.subtle }} className="text-xs font-normal ml-1">d</span></p>
+                      <p style={{ color: t.subtle }} className="text-[11px] mt-1 truncate">Reading · best {readingLongest}</p>
+                    </div>
+                  </div>
+                  <button onClick={markReadToday} disabled={readingDoneToday} style={readingDoneToday ? { background: t.soft, color: t.subtle } : { background: lime, color: limeInk }} className={`rounded-full px-3 py-1.5 text-xs font-medium shrink-0 ${readingDoneToday ? "opacity-60" : "hover:opacity-90"}`}>
+                    {readingDoneToday ? "Done" : "Read"}
+                  </button>
+                </div>
               </div>
             </div>
 
-            {spendTotal === 0 ? (
-              <p style={{ color: subtle }} className="text-sm py-6 text-center">No expenses yet in this period. Add one above.</p>
-            ) : (
-              <div className="flex flex-col sm:flex-row items-center gap-6">
-                <Donut data={spendData} total={spendTotal} trackColor={track} ink={ink} centerValue={won(spendTotal)} centerLabel="spent" />
-                <div className="flex-1 w-full space-y-2.5">
-                  {spendData.filter(d => d.value > 0).map(d => (
-                    <div key={d.label} className="flex items-center gap-3">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: d.color }} />
-                      <span className="text-sm flex-1 truncate">{d.label}</span>
-                      <span style={{ color: subtle }} className="text-xs w-10 text-right">{Math.round((d.value / spendTotal) * 100)}%</span>
-                      <span style={{ fontFamily: F_MONO }} className="text-sm w-24 text-right tabular-nums">{won(d.value)}</span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* donut */}
+              <div style={card} className="rounded-3xl p-5">
+                <h2 className="text-sm font-medium mb-4">Breakdown</h2>
+                {spendTotal === 0 ? (
+                  <p style={{ color: t.subtle }} className="text-sm py-12 text-center">Nothing yet</p>
+                ) : (
+                  <>
+                    <Donut data={spendData} total={spendTotal} track={t.track} ink={t.ink} centerValue={wonShort(spendTotal)} centerLabel="spent" />
+                    <div className="space-y-2 mt-5">
+                      {spendData.map(d => (
+                        <div key={d.label} className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: d.color }} />
+                          <span className="text-xs flex-1 truncate">{d.label}</span>
+                          <span style={{ color: t.subtle }} className="text-[11px] tabular-nums">{Math.round((d.value / spendTotal) * 100)}%</span>
+                          <span className="text-xs tabular-nums w-20 text-right">{won(d.value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* daily chart */}
+              <div style={card} className="sm:col-span-2 rounded-3xl p-5 flex flex-col">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div>
+                    <h2 className="text-sm font-medium">Daily spend</h2>
+                    <p className="text-2xl font-semibold tabular-nums mt-1">{won(budget.spentCycle)}</p>
+                  </div>
+                  <div className="flex gap-1.5">
+                    {[["cycle", "Cycle"], ["last", "Last"], ["all", "All"]].map(([k, label]) => (
+                      <button key={k} onClick={() => setSpendPeriod(k)} style={chip(spendPeriod === k)} className="rounded-full px-3 py-1 text-[11px] font-medium">{label}</button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex-1 flex items-end gap-[3px] h-44 mt-8">
+                  {dailyBars.map(b => (
+                    <div key={b.day} className="flex-1 h-full flex flex-col justify-end items-center relative">
+                      {b.isToday && b.value > 0 && (
+                        <span style={{ background: lime, color: limeInk }} className="absolute bottom-full mb-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-md whitespace-nowrap z-10">{wonShort(b.value)}</span>
+                      )}
+                      <div
+                        className="w-full rounded-md transition-all"
+                        title={`${shortDate(b.day)} ${won(b.value)}`}
+                        style={{
+                          height: `${Math.max((b.value / maxBar) * 100, b.value > 0 ? 4 : 2)}%`,
+                          background: b.isToday ? lime : b.future ? t.track : t.subtle,
+                          opacity: b.future ? 0.35 : b.isToday ? 1 : 0.55,
+                        }}
+                      />
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-          </div>
-
-          {/* daily spend vs allowance */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold">Daily spend this cycle</h3>
-              <span style={{ color: subtle }} className="text-xs">dashed line = today's allowance</span>
-            </div>
-            <div className="relative h-24 flex items-end gap-[3px]">
-              <div className="absolute left-0 right-0 border-t border-dashed pointer-events-none" style={{ bottom: `${(budget.allowance / maxBar) * 100}%`, borderColor: subtle }} />
-              {dailyBars.map(b => (
-                <div key={b.day} className="flex-1 rounded-t-sm transition-all" title={`${formatShortDate(b.day)} · ${won(b.value)}`}
-                  style={{
-                    height: `${Math.max((b.value / maxBar) * 100, b.value > 0 ? 3 : 1)}%`,
-                    background: b.isToday ? "#7C5A96" : b.future ? track : b.value > budget.allowance ? red : green,
-                    opacity: b.future ? 0.6 : 1,
-                  }} />
-              ))}
-            </div>
-            <div className="flex justify-between text-xs mt-2" style={{ color: subtle, fontFamily: F_MONO }}>
-              <span>{formatShortDate(cycle.start)}</span>
-              <span>{formatShortDate(cycle.end)}</span>
-            </div>
-          </div>
-
-          {/* history */}
-          <div>
-            <button onClick={() => setHistoryOpen(o => !o)} className="flex items-center gap-2 text-sm font-medium mb-3 hover:opacity-80">
-              <ChevronIcon className={`w-4 h-4 transition-transform ${historyOpen ? "rotate-180" : ""}`} />
-              Transaction history ({transactions.length})
-            </button>
-            {historyOpen && (
-              transactions.length === 0 ? (
-                <p style={{ color: subtle }} className="text-sm text-center py-6">Nothing recorded yet.</p>
-              ) : (
-                <div>
-                  <ul className="divide-y" style={{ borderColor: borderCol }}>
-                    {txSlice.map(t => (
-                      <li key={t.id} className="flex items-center justify-between py-2.5 gap-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span style={{ fontFamily: F_MONO, color: subtle }} className="text-xs w-14 shrink-0">{formatShortDate(t.day)}</span>
-                          <div className="flex items-center gap-2 min-w-0">
-                            {t.category && (
-                              <span className="text-xs px-2 py-0.5 rounded-full shrink-0" style={{ background: `${CAT_COLORS[t.category] || "#8A8A8A"}22`, color: CAT_COLORS[t.category] || ink }}>{t.category}</span>
-                            )}
-                            <span className="text-sm truncate">{t.note || (t.type === "income" ? "Income" : "Expense")}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 shrink-0">
-                          <span style={{ fontFamily: F_MONO, color: t.type === "income" ? green : red }} className="text-sm font-medium tabular-nums">{t.type === "income" ? "+" : "-"}{won(t.amt)}</span>
-                          <button onClick={() => deleteTransaction(t.id)} style={{ color: subtle }} className="hover:text-red-500 transition-colors" aria-label="Delete"><TrashIcon className="w-4 h-4" /></button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                  <Pager page={Math.min(txPage, txPages)} pages={txPages} onChange={setTxPage} subtle={subtle} />
+                <div className="flex justify-between text-[11px] mt-3" style={{ color: t.subtle }}>
+                  <span>{shortDate(cycle.start)}</span>
+                  <span>{shortDate(cycle.end)}</span>
                 </div>
-              )
-            )}
+              </div>
+            </div>
+
+            {/* transactions */}
+            <div style={card} className="rounded-3xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-medium">Money tracker</h2>
+                <span style={{ color: t.subtle }} className="text-xs tabular-nums">{transactions.length}</span>
+              </div>
+              {transactions.length === 0 ? (
+                <p style={{ color: t.subtle }} className="text-sm py-8 text-center">Add your first entry on the right</p>
+              ) : (
+                <>
+                  <div className="space-y-1">
+                    {txSlice.map(tx => {
+                      const color = CAT_COLORS[tx.category] || t.subtle;
+                      return (
+                        <div key={tx.id} className="flex items-center gap-3 py-2.5 group">
+                          <span className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0" style={{ background: `${color}22`, color }}>
+                            {(tx.category || OTHER).slice(0, 1)}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm truncate">{tx.note || tx.category || (tx.type === "income" ? "Income" : "Expense")}</p>
+                            <p style={{ color: t.subtle }} className="text-[11px]">{tx.category || OTHER}</p>
+                          </div>
+                          <span style={{ color: t.subtle }} className="text-xs tabular-nums shrink-0 hidden sm:block">{shortDate(tx.day)}</span>
+                          <span className="text-sm font-medium tabular-nums shrink-0 w-24 text-right" style={{ color: tx.type === "income" ? lime : red }}>
+                            {tx.type === "income" ? "+" : "-"}{won(tx.amt)}
+                          </span>
+                          <button onClick={() => deleteTransaction(tx.id)} style={{ color: t.subtle }} className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-opacity shrink-0" aria-label="Delete">
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <Pager page={txCur} pages={txPages} onChange={setTxPage} subtle={t.subtle} />
+                </>
+              )}
+            </div>
           </div>
-        </section>
 
-        {/* workout */}
-        <section style={{ background: cardBg, border: `1px solid ${borderCol}` }} className="rounded-2xl shadow-sm overflow-hidden">
-          <button onClick={() => setWorkoutOpen(o => !o)} className="w-full flex items-center justify-between px-5 sm:px-6 py-4 text-left">
-            <h2 style={{ fontFamily: F_DISPLAY }} className="text-lg font-semibold flex items-center gap-2">
-              <BarbellIcon className="w-5 h-5" /> Workout record
-            </h2>
-            <ChevronIcon className={`w-5 h-5 transition-transform duration-200 ${workoutOpen ? "rotate-180" : ""}`} />
-          </button>
+          {/* ---------------- right: input ---------------- */}
+          <div className="lg:col-span-1 space-y-4">
 
-          {workoutOpen && (
-            <div className="px-5 sm:px-6 pb-6">
-              <div className="flex flex-wrap gap-2 mb-4">
-                <button onClick={() => setFilter("ALL")} style={pill(filter === "ALL")} className="rounded-full px-3 py-1.5 text-xs font-medium">All</button>
-                {TOOLS.map(t => {
-                  const Icon = TOOL_ICONS[t.key];
+            <div style={card} className="rounded-3xl p-5">
+              <h2 className="text-sm font-medium mb-4">Add entry</h2>
+              <form onSubmit={addTransaction} className="space-y-2.5">
+                <input type="number" step="1" min="0" placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} style={input} className="w-full rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#C9F24D]" required />
+                <div className="grid grid-cols-2 gap-2.5">
+                  <select value={txType} onChange={(e) => setTxType(e.target.value)} style={input} className="rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#C9F24D]">
+                    <option value="expense">Expense</option>
+                    <option value="income">Income</option>
+                  </select>
+                  <select value={category} onChange={(e) => setCategory(e.target.value)} style={input} className="rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#C9F24D]">
+                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <input type="text" placeholder="Note" value={note} onChange={(e) => setNote(e.target.value)} style={input} className="w-full rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#C9F24D]" />
+                <button type="submit" style={{ background: lime, color: limeInk }} className="w-full rounded-xl px-4 py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5">
+                  <PlusIcon className="w-4 h-4" /> Add
+                </button>
+              </form>
+            </div>
+
+            {/* workout */}
+            <div style={card} className="rounded-3xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-medium flex items-center gap-2"><BarbellIcon className="w-4 h-4" /> Workout</h2>
+                <button onClick={addExercise} style={{ background: lime, color: limeInk }} className="rounded-full p-1.5 hover:opacity-90" aria-label="Add exercise"><PlusIcon className="w-3.5 h-3.5" /></button>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5 mb-4">
+                <button onClick={() => setFilter("ALL")} style={chip(filter === "ALL")} className="rounded-full px-2.5 py-1 text-[11px] font-medium">All</button>
+                {TOOLS.map(tool => {
+                  const Icon = TOOL_ICONS[tool.key];
                   return (
-                    <button key={t.key} onClick={() => setFilter(t.key)} style={pill(filter === t.key)} className="rounded-full px-3 py-1.5 text-xs font-medium flex items-center gap-1.5" title={t.label}>
-                      <Icon className="w-4 h-4" /> {t.key}
+                    <button key={tool.key} onClick={() => setFilter(tool.key)} style={chip(filter === tool.key)} className="rounded-full p-1.5" title={tool.label}>
+                      <Icon className="w-4 h-4" />
                     </button>
                   );
                 })}
               </div>
 
+              <div className="flex gap-3 text-[11px] mb-2" style={{ color: t.subtle }}>
+                <button onClick={() => toggleSort("name")} className="hover:opacity-70">Name{sortKey === "name" ? (sortDir === "asc" ? " ↑" : " ↓") : ""}</button>
+                <button onClick={() => toggleSort("weight")} className="hover:opacity-70">Weight{sortKey === "weight" ? (sortDir === "asc" ? " ↑" : " ↓") : ""}</button>
+                <button onClick={() => toggleSort("reps")} className="hover:opacity-70">Reps{sortKey === "reps" ? (sortDir === "asc" ? " ↑" : " ↓") : ""}</button>
+              </div>
+
               {sortedWorkouts.length === 0 ? (
-                <p style={{ color: subtle }} className="text-sm py-2 mb-3">No exercises here yet.</p>
+                <p style={{ color: t.subtle }} className="text-sm py-6 text-center">No lifts here</p>
               ) : (
-                <div className="overflow-x-auto -mx-2 px-2">
-                  <div className="min-w-[340px]">
-                    <div style={{ color: subtle }} className="grid grid-cols-[56px_1fr_56px_56px_32px] sm:grid-cols-[72px_1fr_72px_72px_32px] gap-2 text-xs px-1 mb-2">
-                      <span>Tool</span>
-                      <button onClick={() => toggleSort("name")} className="text-left flex items-center gap-1">Name{sortKey === "name" && (sortDir === "asc" ? " ▲" : " ▼")}</button>
-                      <button onClick={() => toggleSort("weight")} className="text-left flex items-center gap-1">Wt{sortKey === "weight" && (sortDir === "asc" ? " ▲" : " ▼")}</button>
-                      <button onClick={() => toggleSort("reps")} className="text-left flex items-center gap-1">Reps{sortKey === "reps" && (sortDir === "asc" ? " ▲" : " ▼")}</button>
-                      <span />
-                    </div>
-                    <div className="space-y-2">
-                      {wkSlice.map(ex => {
-                        const Icon = TOOL_ICONS[ex.tool] || DumbbellIcon;
-                        return (
-                          <div key={ex.id} className="grid grid-cols-[56px_1fr_56px_56px_32px] sm:grid-cols-[72px_1fr_72px_72px_32px] gap-2 items-center">
-                            <div className="relative flex items-center">
-                              <Icon className="w-4 h-4 absolute left-1.5 pointer-events-none" style={{ color: subtle }} />
-                              <select value={ex.tool || "DB"} onChange={(e) => updateExercise(ex.id, "tool", e.target.value)} style={inputStyle} className="w-full rounded-lg pl-7 pr-1 py-1.5 text-xs appearance-none outline-none focus:ring-2 focus:ring-[#7C5A96]">
-                                {TOOLS.map(t => <option key={t.key} value={t.key}>{t.key}</option>)}
-                              </select>
-                            </div>
-                            <input type="text" placeholder="Exercise name" value={ex.name || ""} onChange={(e) => updateExercise(ex.id, "name", e.target.value)} style={inputStyle} className="rounded-lg px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-[#7C5A96]" />
-                            <input type="number" min="0" placeholder="kg" value={ex.weight || ""} onChange={(e) => updateExercise(ex.id, "weight", e.target.value)} style={inputStyle} className="rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-[#7C5A96]" />
-                            <input type="number" min="0" value={ex.reps || ""} onChange={(e) => updateExercise(ex.id, "reps", e.target.value)} style={inputStyle} className="rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-[#7C5A96]" />
-                            <button onClick={() => deleteExercise(ex.id)} style={{ color: subtle }} className="hover:text-red-500 transition-colors flex justify-center" aria-label="Remove"><XIcon className="w-4 h-4" /></button>
+                <>
+                  <div className="space-y-1.5">
+                    {wkSlice.map(ex => {
+                      const Icon = TOOL_ICONS[ex.tool] || DumbbellIcon;
+                      return (
+                        <div key={ex.id} style={{ background: t.soft }} className="rounded-2xl p-2.5 group">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                const i = TOOLS.findIndex(x => x.key === (ex.tool || "BB"));
+                                updateExercise(ex.id, "tool", TOOLS[(i + 1) % TOOLS.length].key);
+                              }}
+                              style={{ background: `${lime}1F`, color: lime }}
+                              className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 hover:opacity-80"
+                              title="Change tool"
+                            >
+                              <Icon className="w-4 h-4" />
+                            </button>
+                            <input type="text" placeholder="Exercise" value={ex.name || ""} onChange={(e) => updateExercise(ex.id, "name", e.target.value)} style={{ color: t.ink }} className="flex-1 min-w-0 bg-transparent text-sm outline-none" />
+                            <button onClick={() => deleteExercise(ex.id)} style={{ color: t.subtle }} className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-opacity shrink-0" aria-label="Remove"><XIcon className="w-3.5 h-3.5" /></button>
                           </div>
-                        );
-                      })}
-                    </div>
-                    <Pager page={Math.min(wkPage, wkPages)} pages={wkPages} onChange={setWkPage} subtle={subtle} />
+                          <div className="flex items-center gap-2 mt-2 pl-10">
+                            <input type="number" min="0" placeholder="0" value={ex.weight || ""} onChange={(e) => updateExercise(ex.id, "weight", e.target.value)} style={{ background: t.card, border: `1px solid ${t.border}`, color: t.ink }} className="w-16 rounded-lg px-2 py-1 text-xs tabular-nums outline-none focus:ring-1 focus:ring-[#C9F24D]" />
+                            <span style={{ color: t.subtle }} className="text-[11px]">kg</span>
+                            <input type="number" min="0" value={ex.reps || ""} onChange={(e) => updateExercise(ex.id, "reps", e.target.value)} style={{ background: t.card, border: `1px solid ${t.border}`, color: t.ink }} className="w-14 rounded-lg px-2 py-1 text-xs tabular-nums outline-none focus:ring-1 focus:ring-[#C9F24D]" />
+                            <span style={{ color: t.subtle }} className="text-[11px]">reps</span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
+                  <Pager page={wkCur} pages={wkPages} onChange={setWkPage} subtle={t.subtle} />
+                </>
               )}
-
-              <button onClick={addExercise} style={{ border: `1px solid ${borderCol}`, color: ink }} className="rounded-xl px-4 py-2 text-sm font-medium hover:opacity-70 transition-opacity flex items-center gap-1 mt-3"><PlusIcon className="w-4 h-4" /> Add exercise</button>
             </div>
-          )}
-        </section>
+          </div>
+        </div>
 
-        <p style={{ color: subtle }} className="text-center text-xs mt-8">Synced by MERDY</p>
+        <p style={{ color: t.subtle }} className="text-center text-[11px] mt-8">Synced by MERDY</p>
       </div>
     </div>
   );
