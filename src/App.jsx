@@ -1,4 +1,4 @@
-\import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import axios from "axios";
 
 const BIN_ID = "6a4c695cf5f4af5e296a28a4";
