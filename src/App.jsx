@@ -6,22 +6,52 @@ const MASTER_KEY = "$2a$10$O2F0Os04xfXpTPk7jCdHpeDQGKXiJdwlSlpnuFrlEPSmsZ/SdAMgO
 const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 const HEADERS = { "X-Master-Key": MASTER_KEY, "Content-Type": "application/json" };
 
+// ============================================================
+// DESIGN TOKENS
+// ============================================================
+
+// 8-point grid. Every gap, pad and margin resolves to one of these.
+const SP = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 };
+
+// Concentric radii: inner = outer - padding.
+const R = { sm: 10, md: 14, lg: 20, xl: 28, pill: 999 };
+
+// SF-style type ramp. Poppins is the face, the scale and tracking are HIG.
+const TY = {
+  largeTitle: { fontSize: 34, lineHeight: "41px", fontWeight: 600, letterSpacing: "-0.4px" },
+  title1:     { fontSize: 28, lineHeight: "34px", fontWeight: 600, letterSpacing: "-0.36px" },
+  title2:     { fontSize: 22, lineHeight: "28px", fontWeight: 600, letterSpacing: "-0.26px" },
+  title3:     { fontSize: 20, lineHeight: "25px", fontWeight: 600, letterSpacing: "-0.2px" },
+  headline:   { fontSize: 17, lineHeight: "22px", fontWeight: 600, letterSpacing: "-0.24px" },
+  body:       { fontSize: 17, lineHeight: "22px", fontWeight: 400, letterSpacing: "-0.24px" },
+  callout:    { fontSize: 16, lineHeight: "21px", fontWeight: 400, letterSpacing: "-0.2px" },
+  subhead:    { fontSize: 15, lineHeight: "20px", fontWeight: 500, letterSpacing: "-0.16px" },
+  footnote:   { fontSize: 13, lineHeight: "18px", fontWeight: 400, letterSpacing: "-0.08px" },
+  caption1:   { fontSize: 12, lineHeight: "16px", fontWeight: 400, letterSpacing: "0px" },
+  caption2:   { fontSize: 11, lineHeight: "16px", fontWeight: 400, letterSpacing: "0.06px" },
+};
+const num = (style) => ({ ...style, fontVariantNumeric: "tabular-nums" });
+
+// Brand (Past Works guide) + semantic accents.
+const BRAND = "#2F5BEA";
+const BRAND_2 = "#1A73E8";
+const BRAND_TINT = "#6F9BFF"; // accent as text on dark surfaces, AA safe
+const TEAL = "#12B3A8";
+const GREEN = "#1AA971";
+const AMBER = "#F5A623";
+const VIOLET = "#7C6BF0";
+const RED_DARK = "#FF6961";
+const RED_LIGHT = "#D22B20";
+
+const HIT = 44; // minimum touch target, pt
+
 // ---------- config ----------
 const CYCLE_START_DAY = 25;
 const ROUND_TO = 100;
 const TX_PAGE_SIZE = 5;
 const WK_PAGE_SIZE = 10;
 const HIGHLIGHT_MAX = 200;
-const FONT = "'Poppins', system-ui, sans-serif";
-
-// brand (from Past Works guide)
-const BLUE = "#2F5BEA";
-const BLUE_2 = "#1A73E8";
-const TEAL = "#12B3A8";
-const GREEN = "#1AA971";
-const AMBER = "#F5A623";
-const VIOLET = "#7C6BF0";
-const RED = "#E5544B";
+const FONT = "'Poppins', -apple-system, BlinkMacSystemFont, system-ui, sans-serif";
 
 const TOOLS = [
   { key: "BB", label: "Barbell" },
@@ -33,7 +63,7 @@ const TOOLS = [
 
 const CATEGORIES = ["Food", "Grocery", "Entertainment", "Clothes", "Acc"];
 const CAT_LABELS = { Food: "Food", Grocery: "Grocery", Entertainment: "Entertainment", Clothes: "Clothes", Acc: "Accessories" };
-const CAT_COLORS = { Food: BLUE, Grocery: TEAL, Entertainment: VIOLET, Clothes: GREEN, Acc: AMBER };
+const CAT_COLORS = { Food: BRAND, Grocery: TEAL, Entertainment: VIOLET, Clothes: GREEN, Acc: AMBER };
 
 // ---------- date helpers ----------
 const pad = (n) => String(n).padStart(2, "0");
@@ -99,22 +129,21 @@ const MoonIcon = (p) => (<svg {...s(p)}><path d="M20 14.2A8.2 8.2 0 1 1 9.8 4a6.
 const TrashIcon = (p) => (<svg {...s(p)}><path d="M4 7h16M9 7V4.8A.8.8 0 0 1 9.8 4h4.4a.8.8 0 0 1 .8.8V7M18 7l-.7 12.4a1.6 1.6 0 0 1-1.6 1.6H8.3a1.6 1.6 0 0 1-1.6-1.6L6 7" /></svg>);
 const XIcon = (p) => (<svg {...s(p)}><path d="M6 6l12 12M18 6L6 18" /></svg>);
 const PlusIcon = (p) => (<svg {...s(p)}><path d="M12 5v14M5 12h14" /></svg>);
-const ArrowIcon = (p) => (<svg {...s(p)}><path d="M15 6l-6 6 6 6" /></svg>);
+const ChevronIcon = (p) => (<svg {...s(p)}><path d="M15 6l-6 6 6 6" /></svg>);
 const FlameIcon = (p) => (<svg {...s(p)}><path d="M12 3c.6 3.2 3 4.2 3.9 6.4a5.9 5.9 0 1 1-9.6 1.7C7.6 8.4 10.4 8 12 3Z" /></svg>);
 const BookIcon = (p) => (<svg {...s(p)}><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v15H6.5A2.5 2.5 0 0 0 4 20.5Z" /><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H19v3H6.5" /></svg>);
 const PenIcon = (p) => (<svg {...s(p)}><path d="M4 20h4l10-10a2.1 2.1 0 0 0-3-3L5 17v3Z" /></svg>);
 const CheckIcon = (p) => (<svg {...s(p)}><path d="M5 12.5 10 17l9-10" /></svg>);
 const CalendarIcon = (p) => (<svg {...s(p)}><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 9.5h17M8 3v3.5M16 3v3.5" /></svg>);
 
-// category icons
 const FoodIcon = (p) => (<svg {...s(p)}><path d="M4.5 3v6a2.8 2.8 0 0 0 5.6 0V3M7.3 11.5V21" /><path d="M17.5 3c-1.4 2-2 4.2-2 6.3 0 1.5.9 2.4 2 2.4s2-.9 2-2.4c0-2.1-.6-4.3-2-6.3ZM17.5 11.7V21" /></svg>);
 const GroceryIcon = (p) => (<svg {...s(p)}><path d="M4.5 8h15l-1.4 10.4a2 2 0 0 1-2 1.7H7.9a2 2 0 0 1-2-1.7L4.5 8Z" /><path d="m8.5 8 3.5-5 3.5 5M10 12v4M14 12v4" /></svg>);
 const EntertainmentIcon = (p) => (<svg {...s(p)}><circle cx="12" cy="12" r="8.5" /><path d="M10.3 9.2 15 12l-4.7 2.8V9.2Z" /></svg>);
 const ClothesIcon = (p) => (<svg {...s(p)}><path d="M8.5 3.5 5 5.5 3 9l3.2 1.7V20.5h11.6V10.7L21 9l-2-3.5-3.5-2" /><path d="M8.5 3.5c0 1.9 1.6 3 3.5 3s3.5-1.1 3.5-3" /></svg>);
 const AccessoriesIcon = (p) => (<svg {...s(p)}><circle cx="12" cy="12" r="4.6" /><path d="M9 7.6 9.6 3h4.8l.6 4.6M9 16.4 9.6 21h4.8l.6-4.6" /></svg>);
+const DotIcon = (p) => (<svg {...s(p)}><circle cx="12" cy="12" r="4" /></svg>);
 const CAT_ICONS = { Food: FoodIcon, Grocery: GroceryIcon, Entertainment: EntertainmentIcon, Clothes: ClothesIcon, Acc: AccessoriesIcon };
 
-// workout icons
 const DumbbellIcon = (p) => (<svg {...s(p)}><path d="M4 9v6M7 7v10M10 11h4M17 7v10M20 9v6" /></svg>);
 const KettlebellIcon = (p) => (<svg {...s(p)}><path d="M9 7a3 3 0 0 1 6 0" /><path d="M9.2 7.4C7 8.6 5.5 11 5.5 13.6c0 2.3 1 4 2.2 5.4h8.6c1.2-1.4 2.2-3.1 2.2-5.4 0-2.6-1.5-5-3.7-6.2" /></svg>);
 const BarbellIcon = (p) => (<svg {...s(p)}><path d="M3 10v4M6 7.5v9M8.5 12h7M18 7.5v9M21 10v4" /></svg>);
@@ -122,42 +151,48 @@ const BodyweightIcon = (p) => (<svg {...s(p)}><circle cx="12" cy="5" r="2" /><pa
 const ErgIcon = (p) => (<svg {...s(p)}><circle cx="8" cy="8" r="2" /><path d="M10 10.5l3 2 3-1M13 12.5l1 4M14 16.5l-4 2.5M3 14h18M6 14l-2 5M18 14l2 5" /></svg>);
 const TOOL_ICONS = { DB: DumbbellIcon, KB: KettlebellIcon, BB: BarbellIcon, BW: BodyweightIcon, ERG: ErgIcon };
 
-// ---------- donut ----------
-function Donut({ data, total, size = 150, thickness = 20, track, ink, centerValue, centerLabel }) {
+// ---------- primitives ----------
+function Donut({ data, total, size = 152, thickness = 20, track, ink, centerValue, centerLabel }) {
   const r = (size - thickness) / 2;
   const c = 2 * Math.PI * r;
   let offset = 0;
   return (
     <div className="relative mx-auto shrink-0" style={{ width: size, height: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)" }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)" }} aria-hidden="true">
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={track} strokeWidth={thickness} />
         {total > 0 && data.map((d) => {
           const len = (d.value / total) * c;
-          const arc = <circle key={d.label} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={d.color} strokeWidth={thickness} strokeDasharray={`${len} ${c - len}`} strokeDashoffset={-offset} strokeLinecap="butt" />;
+          const arc = (
+            <circle key={d.key} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={d.color}
+              strokeWidth={thickness} strokeDasharray={`${len} ${c - len}`} strokeDashoffset={-offset} strokeLinecap="butt"
+              style={{ transition: "stroke-dasharray .5s var(--ease), stroke-dashoffset .5s var(--ease)" }} />
+          );
           offset += len;
           return arc;
         })}
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span style={{ color: ink }} className="text-lg font-semibold tabular-nums">{centerValue}</span>
-        <span className="text-[11px] opacity-50">{centerLabel}</span>
+      <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ gap: SP.xs }}>
+        <span style={{ ...num(TY.title3), color: ink }}>{centerValue}</span>
+        <span style={{ ...TY.caption2, color: "currentColor", opacity: 0.6 }}>{centerLabel}</span>
       </div>
     </div>
   );
 }
 
-function Pager({ page, pages, onChange, subtle }) {
+function Pager({ page, pages, onChange, label2 }) {
   if (pages <= 1) return null;
   return (
-    <div className="flex items-center justify-center gap-3 pt-4">
-      <button onClick={() => onChange(page - 1)} disabled={page === 1} className={`p-1.5 rounded-lg ${page === 1 ? "opacity-25" : "hover:opacity-70"}`} aria-label="Previous">
-        <ArrowIcon className="w-4 h-4" />
+    <nav className="flex items-center justify-center" style={{ gap: SP.sm, paddingTop: SP.md }} aria-label="Pagination">
+      <button onClick={() => onChange(page - 1)} disabled={page === 1} className="press flex items-center justify-center rounded-full"
+        style={{ width: HIT, height: HIT, opacity: page === 1 ? 0.3 : 1 }} aria-label="Previous page">
+        <ChevronIcon className="w-5 h-5" />
       </button>
-      <span style={{ color: subtle }} className="text-xs tabular-nums">{page} / {pages}</span>
-      <button onClick={() => onChange(page + 1)} disabled={page === pages} className={`p-1.5 rounded-lg rotate-180 ${page === pages ? "opacity-25" : "hover:opacity-70"}`} aria-label="Next">
-        <ArrowIcon className="w-4 h-4" />
+      <span style={{ ...num(TY.footnote), color: label2, minWidth: 48, textAlign: "center" }}>{page} / {pages}</span>
+      <button onClick={() => onChange(page + 1)} disabled={page === pages} className="press flex items-center justify-center rounded-full rotate-180"
+        style={{ width: HIT, height: HIT, opacity: page === pages ? 0.3 : 1 }} aria-label="Next page">
+        <ChevronIcon className="w-5 h-5" />
       </button>
-    </div>
+    </nav>
   );
 }
 
@@ -191,14 +226,34 @@ export default function App() {
   const [editingHighlight, setEditingHighlight] = useState(false);
   const [highlightDraft, setHighlightDraft] = useState("");
 
+  // font + global interaction rules
   useEffect(() => {
-    const id = "poppins-font";
-    if (document.getElementById(id)) return;
-    const link = document.createElement("link");
-    link.id = id;
-    link.rel = "stylesheet";
-    link.href = "https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap";
-    document.head.appendChild(link);
+    if (!document.getElementById("poppins-font")) {
+      const link = document.createElement("link");
+      link.id = "poppins-font";
+      link.rel = "stylesheet";
+      link.href = "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap";
+      document.head.appendChild(link);
+    }
+    if (!document.getElementById("hig-base")) {
+      const st = document.createElement("style");
+      st.id = "hig-base";
+      st.textContent = `
+        :root { --ease: cubic-bezier(.32,.72,0,1); }
+        * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+        .press { transition: transform .2s var(--ease), opacity .2s var(--ease), background-color .2s var(--ease); touch-action: manipulation; }
+        .press:active:not(:disabled) { transform: scale(.96); }
+        .lift { transition: transform .28s var(--ease), background-color .28s var(--ease); }
+        :focus { outline: none; }
+        :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
+        input::placeholder, textarea::placeholder { color: var(--label3); }
+        @media (prefers-reduced-motion: reduce) {
+          .press, .lift, .bar { transition: none !important; }
+          .press:active { transform: none; }
+        }
+      `;
+      document.head.appendChild(st);
+    }
   }, []);
 
   useEffect(() => {
@@ -280,11 +335,10 @@ export default function App() {
   const budget = useMemo(() => {
     const inCycle = txs.filter(t => t.day >= cycle.start && t.day <= cycle.end);
     const spentCycle = inCycle.filter(t => t.type === "expense").reduce((a, t) => a + t.amt, 0);
-    const spentToday = inCycle.filter(t => t.type === "expense" && t.day === today).reduce((a, t) => a + t.amt, 0);
     const daysLeft = Math.max(diffDays(today, cycle.end) + 1, 1);
-    const raw = (savings + spentToday) / daysLeft;
-    const allowance = raw > 0 ? Math.floor(raw / ROUND_TO) * ROUND_TO : 0;
-    return { spentCycle, spentToday, daysLeft, allowance, inCycle };
+    // total money left, divided by the days left before the reset
+    const allowance = savings > 0 ? Math.floor(savings / daysLeft / ROUND_TO) * ROUND_TO : 0;
+    return { spentCycle, daysLeft, allowance, inCycle };
   }, [txs, cycle, today, savings]);
 
   const streakDays = streakLastReset ? Math.max(diffDays(streakLastReset, today), 0) : 0;
@@ -332,19 +386,14 @@ export default function App() {
   // ---- handlers ----
   const addTransaction = (e) => {
     e.preventDefault();
-    const num = parseFloat(amount);
-    if (!num || num <= 0) return;
+    const n = parseFloat(amount);
+    if (!n || n <= 0) return;
     setTransactions(prev => [{
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      amount: num,
-      type: txType,
-      category,
-      note: note.trim(),
+      amount: n, type: txType, category, note: note.trim(),
       date: new Date(`${today}T12:00:00`).toISOString(),
     }, ...prev]);
-    setAmount("");
-    setNote("");
-    setTxPage(1);
+    setAmount(""); setNote(""); setTxPage(1);
   };
   const deleteTransaction = (id) => setTransactions(prev => prev.filter(t => t.id !== id));
 
@@ -400,221 +449,277 @@ export default function App() {
   const wkSlice = sortedWorkouts.slice((wkCur - 1) * WK_PAGE_SIZE, wkCur * WK_PAGE_SIZE);
   useEffect(() => { setWkPage(1); }, [filter]);
 
-  // ---- theme ----
-  const t = darkMode
-    ? { bg: "#0A0C10", card: "#141821", soft: "#1C2130", border: "rgba(255,255,255,0.07)", ink: "#EEF1F7", subtle: "rgba(238,241,247,0.5)", track: "rgba(255,255,255,0.07)" }
-    : { bg: "#F6F7FB", card: "#FFFFFF", soft: "#F1F4FA", border: "rgba(18,23,43,0.08)", ink: "#12172B", subtle: "rgba(18,23,43,0.5)", track: "rgba(18,23,43,0.07)" };
+  // ---------- semantic colors ----------
+  const c = darkMode
+    ? {
+        bg: "#000000",
+        surface: "rgba(28,28,30,0.72)",
+        surfaceSolid: "#1C1C1E",
+        fill: "rgba(120,120,128,0.24)",
+        fillQuiet: "rgba(120,120,128,0.16)",
+        separator: "rgba(84,84,88,0.60)",
+        label: "#FFFFFF",
+        label2: "rgba(235,235,245,0.62)",
+        label3: "rgba(235,235,245,0.32)",
+        accent: BRAND_TINT,
+        danger: RED_DARK,
+        positive: "#30D158",
+      }
+    : {
+        bg: "#F2F2F7",
+        surface: "rgba(255,255,255,0.80)",
+        surfaceSolid: "#FFFFFF",
+        fill: "rgba(120,120,128,0.14)",
+        fillQuiet: "rgba(120,120,128,0.08)",
+        separator: "rgba(60,60,67,0.24)",
+        label: "#1C1C1E",
+        label2: "rgba(60,60,67,0.62)",
+        label3: "rgba(60,60,67,0.34)",
+        accent: BRAND,
+        danger: RED_LIGHT,
+        positive: GREEN,
+      };
 
-  const card = { background: t.card, border: `1px solid ${t.border}` };
-  const input = { background: t.soft, border: `1px solid ${t.border}`, color: t.ink };
-  const chip = (on) => ({ background: on ? BLUE : t.soft, color: on ? "#fff" : t.subtle, border: `1px solid ${on ? BLUE : t.border}` });
-  const brandGrad = `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_2} 100%)`;
+  const glass = {
+    background: c.surface,
+    border: `0.5px solid ${c.separator}`,
+    backdropFilter: "saturate(180%) blur(24px)",
+    WebkitBackdropFilter: "saturate(180%) blur(24px)",
+    borderRadius: R.xl,
+  };
+  const inset = { background: c.fillQuiet, borderRadius: R.lg };
+  const field = {
+    background: c.fill, border: `0.5px solid ${c.separator}`, color: c.label,
+    borderRadius: R.md, padding: `${SP.sm + 2}px ${SP.md - 4}px`, minHeight: HIT, width: "100%",
+    ...TY.callout,
+  };
+  const brandFill = { backgroundImage: `linear-gradient(135deg, ${BRAND} 0%, ${BRAND_2} 100%)`, color: "#FFFFFF" };
+  const chip = (on) => ({
+    ...(on ? brandFill : { background: c.fill, color: c.label2 }),
+    borderRadius: R.pill, minHeight: 32, padding: `0 ${SP.md - 4}px`,
+    ...TY.footnote, fontWeight: 500,
+  });
+  const cssVars = { "--focus": c.accent, "--label3": c.label3 };
 
   if (loading) {
     return (
-      <div style={{ background: t.bg, color: t.ink, fontFamily: FONT, minHeight: "100vh" }} className="flex items-center justify-center">
-        <p className="text-sm opacity-60">Loading</p>
+      <div style={{ background: c.bg, color: c.label2, fontFamily: FONT, minHeight: "100vh", ...TY.subhead }} className="flex items-center justify-center">
+        Loading
       </div>
     );
   }
 
-  return (
-    <div style={{ background: t.bg, color: t.ink, fontFamily: FONT, minHeight: "100vh" }}>
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6">
+  const StreakRow = ({ Icon, tint, days, action, longest }) => (
+    <div className="flex items-center" style={{ minHeight: HIT + SP.sm }}>
+      <div className="flex justify-center" style={{ width: "30%", color: tint }} aria-hidden="true">
+        <Icon style={{ width: 36, height: 36 }} />
+      </div>
+      <div className="text-center" style={{ width: "30%" }}>
+        <span style={num(TY.title2)}>{days}</span>
+        <span style={{ ...TY.caption2, color: c.label2, display: "block", marginTop: 2 }}>days</span>
+      </div>
+      <div className="flex justify-center" style={{ width: "30%" }}>{action}</div>
+      <div className="text-right" style={{ width: "10%" }}>
+        <span style={{ ...num(TY.subhead), color: c.label2 }} title="Longest streak">{longest}</span>
+      </div>
+    </div>
+  );
 
-        <header className="flex items-center justify-between mb-5">
+  return (
+    <div style={{ background: c.bg, color: c.label, fontFamily: FONT, minHeight: "100vh", ...cssVars }}>
+      <div className="mx-auto" style={{ maxWidth: 1360, padding: `${SP.xl}px ${SP.lg}px` }}>
+
+        <header className="flex items-center justify-between" style={{ marginBottom: SP.lg }}>
           <div>
-            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Hello, Merdy</h1>
-            <p style={{ color: t.subtle }} className="text-xs mt-0.5">
+            <h1 style={TY.title1}>Hello, Merdy</h1>
+            <p style={{ ...TY.footnote, color: c.label2, marginTop: SP.xs }}>
               {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
             </p>
           </div>
-          <button onClick={() => setDarkMode(d => !d)} style={card} className="rounded-full p-2.5 hover:opacity-80 transition-opacity" aria-label="Toggle theme">
-            {darkMode ? <SunIcon className="w-4 h-4" /> : <MoonIcon className="w-4 h-4" />}
+          <button onClick={() => setDarkMode(d => !d)} className="press flex items-center justify-center"
+            style={{ ...glass, borderRadius: R.pill, width: HIT, height: HIT, color: c.label }}
+            aria-label={darkMode ? "Switch to light appearance" : "Switch to dark appearance"}>
+            {darkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
           </button>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-4" style={{ gap: SP.md }}>
 
           {/* ---------------- left ---------------- */}
-          <div className="lg:col-span-3 space-y-4">
+          <div className="lg:col-span-3 flex flex-col" style={{ gap: SP.md }}>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3" style={{ gap: SP.md }}>
               {/* savings */}
-              <div style={{ ...card, backgroundImage: `radial-gradient(120% 120% at 100% 0%, ${BLUE}1F 0%, transparent 55%)` }} className="sm:col-span-2 rounded-3xl p-6">
-                <p style={{ color: t.subtle }} className="text-xs">Total savings</p>
-                <p className="text-4xl sm:text-5xl font-semibold tabular-nums mt-2 tracking-tight">{won(savings)}</p>
+              <section className="sm:col-span-2" style={{ ...glass, padding: SP.lg, backgroundImage: `radial-gradient(120% 120% at 100% 0%, ${BRAND}1A 0%, transparent 58%)` }}>
+                <h2 style={{ ...TY.footnote, color: c.label2 }}>Total savings</h2>
+                <p style={{ ...num(TY.largeTitle), fontSize: 44, lineHeight: "52px", letterSpacing: "-1px", marginTop: SP.sm }}>{won(savings)}</p>
 
-                <div className="grid grid-cols-2 gap-3 mt-6">
-                  <div style={{ backgroundImage: brandGrad, color: "#fff" }} className="rounded-2xl px-4 py-3.5">
-                    <p className="text-[11px] opacity-80">You can spend today</p>
-                    <p className="text-xl font-semibold tabular-nums mt-1">{won(budget.allowance)}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: SP.sm, marginTop: SP.lg }}>
+                  <div style={{ ...brandFill, borderRadius: R.lg, padding: SP.md }}>
+                    <p style={{ ...TY.caption1, opacity: 0.85 }}>You can spend today</p>
+                    <p style={{ ...num(TY.title2), marginTop: SP.xs }}>{won(budget.allowance)}</p>
                   </div>
-                  <div style={{ background: t.soft }} className="rounded-2xl px-4 py-3.5 flex items-center gap-3">
-                    <span style={{ background: `${BLUE}1F`, color: BLUE }} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0">
-                      <CalendarIcon className="w-4 h-4" />
+                  <div className="flex items-center" style={{ ...inset, padding: SP.md, gap: SP.md }}>
+                    <span className="flex items-center justify-center shrink-0"
+                      style={{ width: 40, height: 40, borderRadius: R.pill, background: `${BRAND}24`, color: c.accent }} aria-hidden="true">
+                      <CalendarIcon className="w-5 h-5" />
                     </span>
-                    <div className="min-w-0">
-                      <p className="text-xl font-semibold tabular-nums leading-none">{budget.daysLeft}<span style={{ color: t.subtle }} className="text-xs font-normal ml-1">days</span></p>
-                      <p style={{ color: t.subtle }} className="text-[11px] mt-1 truncate">until reset</p>
+                    <div>
+                      <p style={num(TY.title3)}>{budget.daysLeft}<span style={{ ...TY.footnote, color: c.label2, marginLeft: SP.xs }}>days</span></p>
+                      <p style={{ ...TY.caption1, color: c.label2, marginTop: 2 }}>until reset</p>
                     </div>
                   </div>
                 </div>
-              </div>
+              </section>
 
               {/* streaks */}
-              <div style={card} className="rounded-3xl px-4 py-5 flex flex-col justify-center gap-4">
-                <div className="flex items-center">
-                  <div className="w-[30%] flex justify-center" style={{ color: BLUE }}><FlameIcon className="w-10 h-10" /></div>
-                  <div className="w-[30%] text-center">
-                    <p className="text-2xl font-semibold tabular-nums leading-none">{streakDays}</p>
-                    <p style={{ color: t.subtle }} className="text-[10px] mt-1">days</p>
-                  </div>
-                  <div className="w-[30%] flex justify-center">
-                    <button onClick={resetStreak} disabled={streakResetDisabled} style={{ background: t.soft, color: streakResetDisabled ? t.subtle : RED }} className={`rounded-full px-3 py-1.5 text-xs font-medium ${streakResetDisabled ? "opacity-50" : "hover:opacity-80"}`}>Reset</button>
-                  </div>
-                  <div className="w-[10%] text-right">
-                    <p style={{ color: t.subtle }} className="text-sm font-medium tabular-nums" title="Longest streak">{streakLongest}</p>
-                  </div>
-                </div>
-
-                <div style={{ borderTop: `1px solid ${t.border}` }} />
-
-                <div className="flex items-center">
-                  <div className="w-[30%] flex justify-center" style={{ color: TEAL }}><BookIcon className="w-10 h-10" /></div>
-                  <div className="w-[30%] text-center">
-                    <p className="text-2xl font-semibold tabular-nums leading-none">{readingStreak}</p>
-                    <p style={{ color: t.subtle }} className="text-[10px] mt-1">days</p>
-                  </div>
-                  <div className="w-[30%] flex justify-center">
-                    <button onClick={markReadToday} disabled={readingDoneToday} style={readingDoneToday ? { background: t.soft, color: t.subtle } : { backgroundImage: brandGrad, color: "#fff" }} className={`rounded-full px-3 py-1.5 text-xs font-medium ${readingDoneToday ? "opacity-60" : "hover:opacity-90"}`}>
+              <section className="flex flex-col justify-center" style={{ ...glass, padding: SP.md, gap: SP.md }}>
+                <StreakRow
+                  Icon={FlameIcon} tint={c.accent} days={streakDays} longest={streakLongest}
+                  action={
+                    <button onClick={resetStreak} disabled={streakResetDisabled} className="press"
+                      style={{ ...chip(false), color: streakResetDisabled ? c.label3 : c.danger, minHeight: 36 }}>Reset</button>
+                  }
+                />
+                <div style={{ borderTop: `0.5px solid ${c.separator}` }} />
+                <StreakRow
+                  Icon={BookIcon} tint={TEAL} days={readingStreak} longest={readingLongest}
+                  action={
+                    <button onClick={markReadToday} disabled={readingDoneToday} className="press"
+                      style={readingDoneToday
+                        ? { ...chip(false), color: c.label3, minHeight: 36 }
+                        : { ...chip(true), minHeight: 36 }}>
                       {readingDoneToday ? "Done" : "Read"}
                     </button>
-                  </div>
-                  <div className="w-[10%] text-right">
-                    <p style={{ color: t.subtle }} className="text-sm font-medium tabular-nums" title="Longest streak">{readingLongest}</p>
-                  </div>
-                </div>
-              </div>
+                  }
+                />
+              </section>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3" style={{ gap: SP.md }}>
               {/* breakdown */}
-              <div style={card} className="rounded-3xl p-5">
-                <h2 className="text-sm font-medium mb-4">Breakdown</h2>
+              <section style={{ ...glass, padding: SP.lg, color: c.label }}>
+                <h2 style={TY.subhead}>Breakdown</h2>
                 {spendTotal === 0 ? (
-                  <p style={{ color: t.subtle }} className="text-sm py-12 text-center">Nothing yet</p>
+                  <p style={{ ...TY.footnote, color: c.label2, textAlign: "center", padding: `${SP.xl}px 0` }}>Nothing yet</p>
                 ) : (
                   <>
-                    <Donut data={spendData} total={spendTotal} track={t.track} ink={t.ink} centerValue={wonShort(spendTotal)} centerLabel="spent" />
-                    <div className="space-y-2 mt-5">
-                      {spendData.map(d => (
-                        <div key={d.key} className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: d.color }} />
-                          <span className="text-xs flex-1 truncate">{d.label}</span>
-                          <span style={{ color: t.subtle }} className="text-[11px] tabular-nums">{Math.round((d.value / spendTotal) * 100)}%</span>
-                          <span className="text-xs tabular-nums w-20 text-right">{won(d.value)}</span>
-                        </div>
-                      ))}
+                    <div style={{ marginTop: SP.md }}>
+                      <Donut data={spendData} total={spendTotal} track={c.fillQuiet} ink={c.label} centerValue={wonShort(spendTotal)} centerLabel="spent" />
                     </div>
+                    <ul className="flex flex-col" style={{ gap: SP.sm, marginTop: SP.lg }}>
+                      {spendData.map(d => (
+                        <li key={d.key} className="flex items-center" style={{ gap: SP.sm }}>
+                          <span className="shrink-0" style={{ width: 8, height: 8, borderRadius: R.pill, background: d.color }} />
+                          <span className="flex-1 truncate" style={TY.footnote}>{d.label}</span>
+                          <span style={{ ...num(TY.caption1), color: c.label2 }}>{Math.round((d.value / spendTotal) * 100)}%</span>
+                          <span style={{ ...num(TY.footnote), width: 88, textAlign: "right" }}>{won(d.value)}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </>
                 )}
-              </div>
+              </section>
 
               {/* daily spend */}
-              <div style={card} className="sm:col-span-2 rounded-3xl p-5 flex flex-col">
-                <div className="flex items-start justify-between gap-3 flex-wrap">
+              <section className="sm:col-span-2 flex flex-col" style={{ ...glass, padding: SP.lg }}>
+                <div className="flex items-start justify-between flex-wrap" style={{ gap: SP.md }}>
                   <div>
-                    <h2 className="text-sm font-medium">Daily spend</h2>
-                    <p className="text-2xl font-semibold tabular-nums mt-1">{won(budget.spentCycle)}</p>
+                    <h2 style={TY.subhead}>Daily spend</h2>
+                    <p style={{ ...num(TY.title2), marginTop: SP.xs }}>{won(budget.spentCycle)}</p>
                   </div>
-                  <div className="flex gap-1.5">
+                  <div className="flex" style={{ gap: SP.sm }}>
                     {[["cycle", "Cycle"], ["last", "Last"], ["all", "All"]].map(([k, label]) => (
-                      <button key={k} onClick={() => setSpendPeriod(k)} style={chip(spendPeriod === k)} className="rounded-full px-3 py-1 text-[11px] font-medium">{label}</button>
+                      <button key={k} onClick={() => setSpendPeriod(k)} className="press" style={chip(spendPeriod === k)} aria-pressed={spendPeriod === k}>{label}</button>
                     ))}
                   </div>
                 </div>
 
-                <div className="flex-1 flex items-end gap-[3px] h-44 mt-8">
+                <div className="flex-1 flex items-end" style={{ gap: SP.xs, height: 176, marginTop: SP.xl }}>
                   {dailyBars.map(b => (
                     <div key={b.day} className="flex-1 h-full flex flex-col justify-end items-center relative">
                       {b.isToday && b.value > 0 && (
-                        <span style={{ backgroundImage: brandGrad, color: "#fff" }} className="absolute bottom-full mb-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-md whitespace-nowrap z-10">{wonShort(b.value)}</span>
+                        <span style={{ ...brandFill, ...num(TY.caption2), fontWeight: 600, padding: `2px ${SP.sm - 2}px`, borderRadius: R.sm, position: "absolute", bottom: "100%", marginBottom: SP.sm, whiteSpace: "nowrap", zIndex: 10 }}>
+                          {wonShort(b.value)}
+                        </span>
                       )}
-                      <div
-                        className="w-full rounded-md transition-all"
-                        title={`${shortDate(b.day)} ${won(b.value)}`}
+                      <div className="bar w-full" title={`${shortDate(b.day)} ${won(b.value)}`}
                         style={{
                           height: `${Math.max((b.value / maxBar) * 100, b.value > 0 ? 4 : 2)}%`,
-                          backgroundImage: b.isToday ? brandGrad : "none",
-                          background: b.isToday ? undefined : b.future ? t.track : t.subtle,
-                          opacity: b.future ? 0.35 : b.isToday ? 1 : 0.5,
-                        }}
-                      />
+                          borderRadius: 6,
+                          ...(b.isToday ? brandFill : { background: b.future ? c.fillQuiet : c.fill }),
+                          transition: "height .5s var(--ease)",
+                        }} />
                     </div>
                   ))}
                 </div>
-                <div className="flex justify-between text-[11px] mt-3" style={{ color: t.subtle }}>
+                <div className="flex justify-between" style={{ ...TY.caption1, color: c.label2, marginTop: SP.md }}>
                   <span>{shortDate(cycle.start)}</span>
                   <span>{shortDate(cycle.end)}</span>
                 </div>
-              </div>
+              </section>
             </div>
 
             {/* money tracker */}
-            <div style={card} className="rounded-3xl p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-medium">Money tracker</h2>
-                <span style={{ color: t.subtle }} className="text-xs tabular-nums">{transactions.length}</span>
+            <section style={{ ...glass, padding: SP.lg }}>
+              <div className="flex items-center justify-between" style={{ marginBottom: SP.sm }}>
+                <h2 style={TY.subhead}>Money tracker</h2>
+                <span style={{ ...num(TY.footnote), color: c.label2 }}>{transactions.length}</span>
               </div>
               {transactions.length === 0 ? (
-                <p style={{ color: t.subtle }} className="text-sm py-8 text-center">Add your first entry on the right</p>
+                <p style={{ ...TY.footnote, color: c.label2, textAlign: "center", padding: `${SP.xl}px 0` }}>Add your first entry on the right</p>
               ) : (
                 <>
-                  <div className="space-y-1">
-                    {txSlice.map(tx => {
-                      const color = CAT_COLORS[tx.category] || t.subtle;
-                      const Icon = CAT_ICONS[tx.category];
+                  <ul>
+                    {txSlice.map((tx, i) => {
+                      const color = CAT_COLORS[tx.category] || c.label2;
+                      const Icon = CAT_ICONS[tx.category] || DotIcon;
                       return (
-                        <div key={tx.id} className="flex items-center gap-3 py-2.5 group">
-                          <span className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: `${color}1F`, color }}>
-                            {Icon ? <Icon className="w-4 h-4" /> : <PlusIcon className="w-4 h-4 rotate-45" />}
+                        <li key={tx.id} className="flex items-center" style={{
+                          gap: SP.md, minHeight: 56,
+                          borderTop: i === 0 ? "none" : `0.5px solid ${c.separator}`,
+                        }}>
+                          <span className="flex items-center justify-center shrink-0"
+                            style={{ width: 40, height: 40, borderRadius: R.pill, background: `${color}24`, color }} aria-hidden="true">
+                            <Icon className="w-5 h-5" />
                           </span>
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm truncate">{tx.note || CAT_LABELS[tx.category] || (tx.type === "income" ? "Income" : "Expense")}</p>
-                            <p style={{ color: t.subtle }} className="text-[11px]">{CAT_LABELS[tx.category] || "Other"}</p>
+                            <p className="truncate" style={TY.callout}>{tx.note || CAT_LABELS[tx.category] || (tx.type === "income" ? "Income" : "Expense")}</p>
+                            <p style={{ ...TY.caption1, color: c.label2 }}>{CAT_LABELS[tx.category] || "Other"}</p>
                           </div>
-                          <span style={{ color: t.subtle }} className="text-xs tabular-nums shrink-0 hidden sm:block">{shortDate(tx.day)}</span>
-                          <span className="text-sm font-medium tabular-nums shrink-0 w-24 text-right" style={{ color: tx.type === "income" ? GREEN : RED }}>
+                          <span className="shrink-0 hidden sm:block" style={{ ...num(TY.footnote), color: c.label2 }}>{shortDate(tx.day)}</span>
+                          <span className="shrink-0" style={{ ...num(TY.callout), fontWeight: 500, width: 112, textAlign: "right", color: tx.type === "income" ? c.positive : c.label }}>
                             {tx.type === "income" ? "+" : "-"}{won(tx.amt)}
                           </span>
-                          <button onClick={() => deleteTransaction(tx.id)} style={{ color: t.subtle }} className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-opacity shrink-0" aria-label="Delete">
-                            <TrashIcon className="w-4 h-4" />
+                          <button onClick={() => deleteTransaction(tx.id)} className="press flex items-center justify-center shrink-0"
+                            style={{ width: HIT, height: HIT, borderRadius: R.pill, color: c.label3 }}
+                            aria-label={`Delete ${tx.note || "entry"}`}>
+                            <TrashIcon className="w-[18px] h-[18px]" />
                           </button>
-                        </div>
+                        </li>
                       );
                     })}
-                  </div>
-                  <Pager page={txCur} pages={txPages} onChange={setTxPage} subtle={t.subtle} />
+                  </ul>
+                  <Pager page={txCur} pages={txPages} onChange={setTxPage} label2={c.label2} />
                 </>
               )}
-            </div>
+            </section>
           </div>
 
           {/* ---------------- right ---------------- */}
-          <div className="lg:col-span-1 space-y-4">
+          <div className="lg:col-span-1 flex flex-col" style={{ gap: SP.md }}>
 
             {/* week highlight */}
-            <div style={{ ...card, backgroundImage: `radial-gradient(120% 120% at 0% 0%, ${BLUE}14 0%, transparent 60%)` }} className="rounded-3xl p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-medium">Week Highlight</h2>
+            <section style={{ ...glass, padding: SP.lg, backgroundImage: `radial-gradient(120% 120% at 0% 0%, ${BRAND}14 0%, transparent 60%)` }}>
+              <div className="flex items-center justify-between" style={{ marginBottom: SP.md, gap: SP.sm }}>
+                <h2 style={TY.subhead}>Week Highlight</h2>
                 {editingHighlight ? (
-                  <button onClick={saveHighlight} style={{ backgroundImage: brandGrad, color: "#fff" }} className="rounded-full px-3 py-1 text-[11px] font-medium flex items-center gap-1 hover:opacity-90">
-                    <CheckIcon className="w-3.5 h-3.5" /> Save
+                  <button onClick={saveHighlight} className="press flex items-center" style={{ ...chip(true), gap: SP.xs }}>
+                    <CheckIcon className="w-4 h-4" /> Save
                   </button>
                 ) : (
-                  <button onClick={startEditHighlight} style={{ background: t.soft, color: t.subtle }} className="rounded-full px-3 py-1 text-[11px] font-medium flex items-center gap-1 hover:opacity-80">
-                    <PenIcon className="w-3.5 h-3.5" /> Edit
+                  <button onClick={startEditHighlight} className="press flex items-center" style={{ ...chip(false), gap: SP.xs }}>
+                    <PenIcon className="w-4 h-4" /> Edit
                   </button>
                 )}
               </div>
@@ -629,109 +734,126 @@ export default function App() {
                     onBlur={() => { typingRef.current = false; }}
                     rows={5}
                     placeholder="What matters this week"
-                    style={{ ...input, fontSize: "11px", lineHeight: "17px" }}
-                    className="w-full rounded-xl px-3 py-2.5 outline-none resize-none focus:ring-2"
+                    style={{ ...field, ...TY.caption2, lineHeight: "18px", resize: "none", padding: SP.md }}
                   />
-                  <div className="flex items-center justify-between mt-2">
-                    <button onClick={clearHighlight} style={{ color: t.subtle }} className="text-[11px] hover:opacity-70">Delete</button>
-                    <span style={{ color: t.subtle }} className="text-[10px] tabular-nums">{highlightDraft.length}/{HIGHLIGHT_MAX}</span>
+                  <div className="flex items-center justify-between" style={{ marginTop: SP.sm }}>
+                    <button onClick={clearHighlight} className="press" style={{ ...TY.footnote, color: c.danger, minHeight: 32 }}>Delete</button>
+                    <span style={{ ...num(TY.caption2), color: c.label3 }}>{highlightDraft.length}/{HIGHLIGHT_MAX}</span>
                   </div>
                 </>
               ) : weekHighlight ? (
-                <p style={{ fontSize: "11px", lineHeight: "17px" }} className="whitespace-pre-wrap break-words">{weekHighlight}</p>
+                <p style={{ ...TY.caption2, lineHeight: "18px", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{weekHighlight}</p>
               ) : (
-                <p style={{ color: t.subtle, fontSize: "11px", lineHeight: "17px" }}>Nothing pinned. Tap edit to write one.</p>
+                <p style={{ ...TY.caption2, lineHeight: "18px", color: c.label3 }}>Nothing pinned. Tap edit to write one.</p>
               )}
-            </div>
+            </section>
 
             {/* add entry */}
-            <div style={card} className="rounded-3xl p-5">
-              <h2 className="text-sm font-medium mb-4">Add entry</h2>
-              <form onSubmit={addTransaction} className="space-y-2.5">
-                <input type="number" step="1" min="0" placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} style={input} className="w-full rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2" required />
-                <div className="grid grid-cols-2 gap-2.5">
-                  <select value={txType} onChange={(e) => setTxType(e.target.value)} style={input} className="rounded-xl px-3 py-2.5 text-sm outline-none">
+            <section style={{ ...glass, padding: SP.lg }}>
+              <h2 style={{ ...TY.subhead, marginBottom: SP.md }}>Add entry</h2>
+              <form onSubmit={addTransaction} className="flex flex-col" style={{ gap: SP.sm }}>
+                <input type="number" inputMode="numeric" step="1" min="0" placeholder="Amount" value={amount}
+                  onChange={(e) => setAmount(e.target.value)} style={field} aria-label="Amount" required />
+                <div className="grid grid-cols-2" style={{ gap: SP.sm }}>
+                  <select value={txType} onChange={(e) => setTxType(e.target.value)} style={field} aria-label="Type">
                     <option value="expense">Expense</option>
                     <option value="income">Income</option>
                   </select>
-                  <select value={category} onChange={(e) => setCategory(e.target.value)} style={input} className="rounded-xl px-3 py-2.5 text-sm outline-none">
-                    {CATEGORIES.map(c => <option key={c} value={c}>{CAT_LABELS[c]}</option>)}
+                  <select value={category} onChange={(e) => setCategory(e.target.value)} style={field} aria-label="Category">
+                    {CATEGORIES.map(k => <option key={k} value={k}>{CAT_LABELS[k]}</option>)}
                   </select>
                 </div>
-                <input type="text" placeholder="Note" value={note} onChange={(e) => setNote(e.target.value)} style={input} className="w-full rounded-xl px-3 py-2.5 text-sm outline-none" />
-                <button type="submit" style={{ backgroundImage: brandGrad, color: "#fff" }} className="w-full rounded-xl px-4 py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5">
-                  <PlusIcon className="w-4 h-4" /> Add
+                <input type="text" placeholder="Note" value={note} onChange={(e) => setNote(e.target.value)} style={field} aria-label="Note" />
+                <button type="submit" className="press flex items-center justify-center"
+                  style={{ ...brandFill, ...TY.headline, borderRadius: R.md, minHeight: HIT, gap: SP.sm, marginTop: SP.xs }}>
+                  <PlusIcon className="w-5 h-5" /> Add
                 </button>
               </form>
-            </div>
+            </section>
 
             {/* workout */}
-            <div style={card} className="rounded-3xl p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-medium flex items-center gap-2"><BarbellIcon className="w-4 h-4" /> Workout</h2>
-                <button onClick={addExercise} style={{ backgroundImage: brandGrad, color: "#fff" }} className="rounded-full p-1.5 hover:opacity-90" aria-label="Add exercise"><PlusIcon className="w-3.5 h-3.5" /></button>
+            <section style={{ ...glass, padding: SP.lg }}>
+              <div className="flex items-center justify-between" style={{ marginBottom: SP.md }}>
+                <h2 className="flex items-center" style={{ ...TY.subhead, gap: SP.sm }}><BarbellIcon className="w-5 h-5" /> Workout</h2>
+                <button onClick={addExercise} className="press flex items-center justify-center"
+                  style={{ ...brandFill, borderRadius: R.pill, width: 36, height: 36 }} aria-label="Add exercise">
+                  <PlusIcon className="w-4 h-4" />
+                </button>
               </div>
 
-              <div className="flex flex-wrap gap-1.5 mb-4">
-                <button onClick={() => setFilter("ALL")} style={chip(filter === "ALL")} className="rounded-full px-2.5 py-1 text-[11px] font-medium">All</button>
+              <div className="flex flex-wrap" style={{ gap: SP.sm, marginBottom: SP.md }}>
+                <button onClick={() => setFilter("ALL")} className="press" style={chip(filter === "ALL")} aria-pressed={filter === "ALL"}>All</button>
                 {TOOLS.map(tool => {
                   const Icon = TOOL_ICONS[tool.key];
                   return (
-                    <button key={tool.key} onClick={() => setFilter(tool.key)} style={chip(filter === tool.key)} className="rounded-full p-1.5" title={tool.label}>
+                    <button key={tool.key} onClick={() => setFilter(tool.key)} className="press flex items-center justify-center"
+                      style={{ ...chip(filter === tool.key), width: 36, height: 36, padding: 0 }}
+                      aria-pressed={filter === tool.key} aria-label={tool.label} title={tool.label}>
                       <Icon className="w-4 h-4" />
                     </button>
                   );
                 })}
               </div>
 
-              <div className="flex gap-3 text-[11px] mb-2" style={{ color: t.subtle }}>
-                <button onClick={() => toggleSort("name")} className="hover:opacity-70">Name{sortKey === "name" ? (sortDir === "asc" ? " ↑" : " ↓") : ""}</button>
-                <button onClick={() => toggleSort("weight")} className="hover:opacity-70">Weight{sortKey === "weight" ? (sortDir === "asc" ? " ↑" : " ↓") : ""}</button>
-                <button onClick={() => toggleSort("reps")} className="hover:opacity-70">Reps{sortKey === "reps" ? (sortDir === "asc" ? " ↑" : " ↓") : ""}</button>
+              <div className="flex" style={{ gap: SP.md, marginBottom: SP.sm }}>
+                {[["name", "Name"], ["weight", "Weight"], ["reps", "Reps"]].map(([k, label]) => (
+                  <button key={k} onClick={() => toggleSort(k)} className="press"
+                    style={{ ...TY.caption1, color: sortKey === k ? c.label : c.label2, minHeight: 32 }}>
+                    {label}{sortKey === k ? (sortDir === "asc" ? " ↑" : " ↓") : ""}
+                  </button>
+                ))}
               </div>
 
               {sortedWorkouts.length === 0 ? (
-                <p style={{ color: t.subtle }} className="text-sm py-6 text-center">No lifts here</p>
+                <p style={{ ...TY.footnote, color: c.label2, textAlign: "center", padding: `${SP.lg}px 0` }}>No lifts here</p>
               ) : (
                 <>
-                  <div className="space-y-1.5">
+                  <ul className="flex flex-col" style={{ gap: SP.sm }}>
                     {wkSlice.map(ex => {
                       const Icon = TOOL_ICONS[ex.tool] || DumbbellIcon;
                       return (
-                        <div key={ex.id} style={{ background: t.soft }} className="rounded-2xl p-2.5 group">
-                          <div className="flex items-center gap-2">
+                        <li key={ex.id} className="lift" style={{ ...inset, padding: SP.sm + 2 }}>
+                          <div className="flex items-center" style={{ gap: SP.sm }}>
                             <button
                               onClick={() => {
                                 const i = TOOLS.findIndex(x => x.key === (ex.tool || "BB"));
                                 updateExercise(ex.id, "tool", TOOLS[(i + 1) % TOOLS.length].key);
                               }}
-                              style={{ background: `${BLUE}1F`, color: BLUE }}
-                              className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 hover:opacity-80"
-                              title="Change tool"
-                            >
-                              <Icon className="w-4 h-4" />
+                              className="press flex items-center justify-center shrink-0"
+                              style={{ width: 36, height: 36, borderRadius: R.pill, background: `${BRAND}24`, color: c.accent }}
+                              aria-label={`Tool: ${ex.tool || "BB"}. Tap to change`}>
+                              <Icon className="w-[18px] h-[18px]" />
                             </button>
-                            <input type="text" placeholder="Exercise" value={ex.name || ""} onChange={(e) => updateExercise(ex.id, "name", e.target.value)} style={{ color: t.ink }} className="flex-1 min-w-0 bg-transparent text-sm outline-none" />
-                            <button onClick={() => deleteExercise(ex.id)} style={{ color: t.subtle }} className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-opacity shrink-0" aria-label="Remove"><XIcon className="w-3.5 h-3.5" /></button>
+                            <input type="text" placeholder="Exercise" value={ex.name || ""} onChange={(e) => updateExercise(ex.id, "name", e.target.value)}
+                              style={{ ...TY.callout, color: c.label, background: "transparent", border: "none", flex: 1, minWidth: 0, minHeight: 36 }}
+                              aria-label="Exercise name" />
+                            <button onClick={() => deleteExercise(ex.id)} className="press flex items-center justify-center shrink-0"
+                              style={{ width: 36, height: 36, borderRadius: R.pill, color: c.label3 }} aria-label="Remove exercise">
+                              <XIcon className="w-4 h-4" />
+                            </button>
                           </div>
-                          <div className="flex items-center gap-2 mt-2 pl-10">
-                            <input type="number" min="0" placeholder="0" value={ex.weight || ""} onChange={(e) => updateExercise(ex.id, "weight", e.target.value)} style={{ background: t.card, border: `1px solid ${t.border}`, color: t.ink }} className="w-16 rounded-lg px-2 py-1 text-xs tabular-nums outline-none" />
-                            <span style={{ color: t.subtle }} className="text-[11px]">kg</span>
-                            <input type="number" min="0" value={ex.reps || ""} onChange={(e) => updateExercise(ex.id, "reps", e.target.value)} style={{ background: t.card, border: `1px solid ${t.border}`, color: t.ink }} className="w-14 rounded-lg px-2 py-1 text-xs tabular-nums outline-none" />
-                            <span style={{ color: t.subtle }} className="text-[11px]">reps</span>
+                          <div className="flex items-center" style={{ gap: SP.sm, marginTop: SP.sm, paddingLeft: 44 }}>
+                            <input type="number" inputMode="numeric" min="0" placeholder="0" value={ex.weight || ""} onChange={(e) => updateExercise(ex.id, "weight", e.target.value)}
+                              style={{ ...field, ...num(TY.footnote), width: 64, minHeight: 32, padding: `${SP.xs}px ${SP.sm}px`, borderRadius: R.sm, background: c.surfaceSolid }}
+                              aria-label="Weight in kilograms" />
+                            <span style={{ ...TY.caption1, color: c.label2 }}>kg</span>
+                            <input type="number" inputMode="numeric" min="0" value={ex.reps || ""} onChange={(e) => updateExercise(ex.id, "reps", e.target.value)}
+                              style={{ ...field, ...num(TY.footnote), width: 56, minHeight: 32, padding: `${SP.xs}px ${SP.sm}px`, borderRadius: R.sm, background: c.surfaceSolid }}
+                              aria-label="Repetitions" />
+                            <span style={{ ...TY.caption1, color: c.label2 }}>reps</span>
                           </div>
-                        </div>
+                        </li>
                       );
                     })}
-                  </div>
-                  <Pager page={wkCur} pages={wkPages} onChange={setWkPage} subtle={t.subtle} />
+                  </ul>
+                  <Pager page={wkCur} pages={wkPages} onChange={setWkPage} label2={c.label2} />
                 </>
               )}
-            </div>
+            </section>
           </div>
         </div>
 
-        <p style={{ color: t.subtle }} className="text-center text-[11px] mt-8">Synced by MERDY</p>
+        <p style={{ ...TY.caption1, color: c.label3, textAlign: "center", marginTop: SP.xl }}>Synced by MERDY</p>
       </div>
     </div>
   );
